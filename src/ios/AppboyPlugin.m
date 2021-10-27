@@ -108,9 +108,9 @@
     if (floor(NSFoundationVersionNumber) > NSFoundationVersionNumber_iOS_9_x_Max) {
       UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
       // If the delegate hasn't been set yet, set it here in the plugin
-      // if (center.delegate == nil) {
-      //   center.delegate = [UIApplication sharedApplication].delegate;
-      // }
+      if (center.delegate == nil) {
+        center.delegate = [UIApplication sharedApplication].delegate;
+      }
       UNAuthorizationOptions options = UNAuthorizationOptionAlert | UNAuthorizationOptionSound | UNAuthorizationOptionBadge;
       if (@available(iOS 12.0, *)) {
         // options = options | UNAuthorizationOptionProvisional;
