@@ -55,6 +55,9 @@
   // Set location collection and geofences from preferences
   appboyLaunchOptions[ABKEnableAutomaticLocationCollectionKey] = self.enableLocationCollection;
   appboyLaunchOptions[ABKEnableGeofencesKey] = self.enableGeofences;
+  appboyLaunchOptions[ABKInAppMessageControllerDelegateKey] = self;
+  self.inAppDisplayAttempts = 0;
+  appboyLaunchOptions[ABKMinimumTriggerTimeIntervalKey] = @(5);
 
   // Add the endpoint only if it's non nil
   if (self.apiEndpoint != nil) {
@@ -140,6 +143,31 @@
 - (void)changeUser:(CDVInvokedUrlCommand *)command {
   NSString *userId = [command argumentAtIndex:0 withDefault:nil];
   [[Appboy sharedInstance] changeUser:userId];
+}
+
+- (void)getNextInApp:(CDVInvokedUrlCommand *)command {
+  NSLog(@"Display next in-app");
+  self.inAppDisplayAttempts +=1;
+  [[Appboy sharedInstance].inAppMessageController displayNextInAppMessage];
+}
+
+- (NSInteger)inAppMessagesRemainingOnStack:(CDVInvokedUrlCommand *)command {
+  NSLog(@"Getting messages");
+  int inAppRemaining =  [[Appboy sharedInstance].inAppMessageController inAppMessagesRemainingOnStack];
+  NSString* myNewString = [NSString stringWithFormat:@"%i remaining", inAppRemaining];
+  NSLog(myNewString);
+  [self sendCordovaSuccessPluginResultWithInt:inAppRemaining andCommand:command];
+  return inAppRemaining;
+}
+
+- (ABKInAppMessageDisplayChoice)beforeInAppMessageDisplayed:(ABKInAppMessage *)inAppMessage {
+  if (self.inAppDisplayAttempts >= 1) {
+    NSLog(@"Set in-app to display now");
+    return ABKDisplayInAppMessageNow;
+  } else {
+    NSLog(@"Set in-app to display later");
+    return ABKDisplayInAppMessageLater;
+  }
 }
 
 - (void)logCustomEvent:(CDVInvokedUrlCommand *)command {

@@ -2,12 +2,15 @@
 
 @interface AppboyPlugin : CDVPlugin <UIAlertViewDelegate> {}
 
+@property int inAppDisplayAttempts;
+
 /*-------Appboy.h-------*/
 - (void) changeUser:(CDVInvokedUrlCommand *)command;
 - (void) logCustomEvent:(CDVInvokedUrlCommand *)command;
 - (void) logPurchase:(CDVInvokedUrlCommand *)command;
 - (void) disableSdk:(CDVInvokedUrlCommand *)command;
 - (void) enableSdk:(CDVInvokedUrlCommand *)command;
+- (void) getNextInApp:(CDVInvokedUrlCommand *)command;
 - (void) promptForPush:(CDVInvokedUrlCommand *)command;
 - (void) wipeData:(CDVInvokedUrlCommand *)command;
 - (void) requestImmediateDataFlush:(CDVInvokedUrlCommand *)command;
