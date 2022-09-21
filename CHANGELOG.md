@@ -1,3 +1,18 @@
+## 2.30.1
+
+##### Added
+- Added the ability to set the session timeout for iOS (String) in seconds.
+  - Add `<preference name="com.appboy.com.appboy.ios_session_timeout" value="your_timeout" />` to your `config.xml`, replacing `your_timeout` with the desired number of seconds.
+
+##### Fixed
+- Fixed a bug where a Content Card without a key-value pair could cause a crash.
+
+## 2.30.0
+
+##### Breaking
+- Updated to [Braze Android SDK 21.0.0](https://github.com/Appboy/appboy-android-sdk/releases/tag/v21.0.0).
+- Removed "logContentCardsDisplayed" from the javascript plugin.
+
 ## 2.29.0
 
 ##### Breaking
