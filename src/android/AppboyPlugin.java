@@ -26,6 +26,10 @@ import com.braze.support.PermissionUtils;
 import com.braze.ui.activities.ContentCardsActivity;
 import com.braze.ui.inappmessage.BrazeInAppMessageManager;
 
+import com.braze.models.inappmessage.IInAppMessage;
+import com.braze.models.inappmessage.IInAppMessageThemeable;
+import com.braze.ui.inappmessage.InAppMessageOperation;
+
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaPlugin;
 import org.apache.cordova.CordovaPreferences;
@@ -94,6 +98,10 @@ public class AppboyPlugin extends CordovaPlugin {
     BrazeInAppMessageManager.getInstance().registerInAppMessageManager(this.cordova.getActivity());
     mPluginInitializationFinished = true;
   }
+
+  
+
+  
 
   @Override
   public boolean execute(final String action, JSONArray args, final CallbackContext callbackContext) throws JSONException {
@@ -434,6 +442,7 @@ public class AppboyPlugin extends CordovaPlugin {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P && enableRequestFocusFix) {
       // Addresses Cordova bug in https://issuetracker.google.com/issues/36915710
       BrazeInAppMessageManager.getInstance().setCustomInAppMessageViewWrapperFactory(new CordovaInAppMessageViewWrapper.CordovaInAppMessageViewWrapperFactory());
+      BrazeInAppMessageManager.getInstance().setCustomInAppMessageManagerListener(new CustomInAppMessageManagerListener(this.cordova.getActivity()));
     }
 
     Braze.configure(mApplicationContext, configBuilder.build());

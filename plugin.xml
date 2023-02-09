@@ -20,6 +20,7 @@
     <source-file src="src/android/AppboyPlugin.java" target-dir="src/com/appboy/cordova" />
     <source-file src="src/android/ContentCardUtils.java" target-dir="src/com/appboy/cordova" />
     <source-file src="src/android/CordovaInAppMessageViewWrapper.java" target-dir="src/com/appboy/cordova" />
+    <source-file src="src/android/CustomInAppMessageManagerListener.java" target-dir="src/com/appboy/cordova" />
     <framework src="src/android/build-extras.gradle" custom="true" type="gradleReference" />
     <config-file target="AndroidManifest.xml" parent="/manifest">
       <uses-permission android:name="android.permission.INTERNET" />
