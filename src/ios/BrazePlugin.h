@@ -5,6 +5,7 @@
 @interface BrazePlugin : CDVPlugin <UIAlertViewDelegate> {}
 
 @property Braze *braze;
+@property int inAppDisplayAttempts;
 @property id<BrazeIDFADelegate> idfaDelegate;
 @property NSMutableArray<BRZCancellable *> *subscriptions;
 
@@ -15,6 +16,7 @@
 - (void)disableSdk:(CDVInvokedUrlCommand *)command;
 - (void)enableSdk:(CDVInvokedUrlCommand *)command;
 - (void)promptForPush:(CDVInvokedUrlCommand *)command;
+- (void)getNextInApp:(CDVInvokedUrlCommand *)command;
 - (void)wipeData:(CDVInvokedUrlCommand *)command;
 - (void)requestImmediateDataFlush:(CDVInvokedUrlCommand *)command;
 - (void)getDeviceId:(CDVInvokedUrlCommand *)command;

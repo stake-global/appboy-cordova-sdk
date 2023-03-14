@@ -46,6 +46,19 @@ AppboyPlugin.prototype.promptForPush = function () {
 	cordova.exec(null, null, "AppboyPlugin", "promptForPush");
   }
 
+/**
+* Get next in-app popup
+*/
+AppboyPlugin.prototype.getNextInApp = function () {
+	cordova.exec(null, null, "AppboyPlugin", "getNextInApp");
+  }
+
+/**
+* Get number of in-app popups remaining on stack
+*/
+AppboyPlugin.prototype.inAppMessagesRemainingOnStack = function (successCallback, errorCallback) {
+	cordova.exec(successCallback, errorCallback, "AppboyPlugin", "inAppMessagesRemainingOnStack");
+}
 
 /**
 * ** ANDROID ONLY**
