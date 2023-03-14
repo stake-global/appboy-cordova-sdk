@@ -26,6 +26,9 @@ import com.braze.support.requestPushPermissionPrompt
 import com.braze.ui.activities.BrazeFeedActivity
 import com.braze.ui.activities.ContentCardsActivity
 import com.braze.ui.inappmessage.BrazeInAppMessageManager
+import com.braze.models.inappmessage.IInAppMessage
+import com.braze.models.inappmessage.IInAppMessageThemeable
+import com.braze.ui.inappmessage.InAppMessageOperation
 import org.apache.cordova.CallbackContext
 import org.apache.cordova.CordovaPlugin
 import org.apache.cordova.CordovaPreferences
@@ -141,6 +144,7 @@ open class BrazePlugin : CordovaPlugin() {
             }
             "requestPushPermission" -> {
                 cordova.activity.requestPushPermissionPrompt()
+
                 return true
             }
             "setUserAttributionData" -> {
@@ -297,7 +301,7 @@ open class BrazePlugin : CordovaPlugin() {
                 return true
             }
             "subscribeToFeatureFlagUpdates" -> {
-                runOnBraze { 
+                runOnBraze {
                     it.subscribeToFeatureFlagsUpdates() { event: FeatureFlagsUpdatedEvent ->
                         val result = PluginResult(PluginResult.Status.OK, mapFeatureFlags(event.featureFlags))
                         result.setKeepCallback(true)
@@ -426,6 +430,7 @@ open class BrazePlugin : CordovaPlugin() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P && enableRequestFocusFix) {
             // Addresses Cordova bug in https://issuetracker.google.com/issues/36915710
             BrazeInAppMessageManager.getInstance().setCustomInAppMessageViewWrapperFactory(CordovaInAppMessageViewWrapperFactory())
+            BrazeInAppMessageManager.getInstance().setCustomInAppMessageManagerListener(CustomInAppMessageManagerListener(cordova.activity));
         }
         Braze.configure(applicationContext, configBuilder.build())
     }
