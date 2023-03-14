@@ -44,6 +44,8 @@ open class BrazePlugin : CordovaPlugin() {
     private var disableAutoStartSessions = false
     private val feedSubscriberMap: MutableMap<String, IEventSubscriber<FeedUpdatedEvent>> = ConcurrentHashMap()
 
+    var iInAppMessageManagerListener: CustomInAppMessageManagerListener? = null
+
     override fun pluginInitialize() {
         applicationContext = cordova.activity.applicationContext
 
@@ -72,6 +74,11 @@ open class BrazePlugin : CordovaPlugin() {
             "startSessionTracking" -> {
                 disableAutoStartSessions = false
                 return true
+            }
+            "getNextInApp" -> {
+                Log.i(TAG, "Received getNextInApp")
+                iInAppMessageManagerListener.inAppDisplayAttempts += 1
+                return BrazeInAppMessageManager.getInstance().requestDisplayInAppMessage()
             }
             "registerAppboyPushMessages", "setRegisteredPushToken" -> {
                 runOnBraze { it.registeredPushToken = args.getString(0) }
@@ -297,7 +304,7 @@ open class BrazePlugin : CordovaPlugin() {
                 return true
             }
             "subscribeToFeatureFlagUpdates" -> {
-                runOnBraze { 
+                runOnBraze {
                     it.subscribeToFeatureFlagsUpdates() { event: FeatureFlagsUpdatedEvent ->
                         val result = PluginResult(PluginResult.Status.OK, mapFeatureFlags(event.featureFlags))
                         result.setKeepCallback(true)
@@ -423,6 +430,10 @@ open class BrazePlugin : CordovaPlugin() {
             }
         }
         val enableRequestFocusFix = cordovaPreferences.getBoolean(ENABLE_CORDOVA_WEBVIEW_REQUEST_FOCUS_FIX_PREFERENCE, true)
+
+        iInAppMessageManagerListener = CustomInAppMessageManagerListener(cordova.activity)
+        BrazeInAppMessageManager.getInstance().setCustomInAppMessageManagerListener(iInAppMessageManagerListener)
+
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P && enableRequestFocusFix) {
             // Addresses Cordova bug in https://issuetracker.google.com/issues/36915710
             BrazeInAppMessageManager.getInstance().setCustomInAppMessageViewWrapperFactory(CordovaInAppMessageViewWrapperFactory())
