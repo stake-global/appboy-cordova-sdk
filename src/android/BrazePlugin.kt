@@ -76,8 +76,8 @@ open class BrazePlugin : CordovaPlugin() {
                 return true
             }
             "getNextInApp" -> {
-                Log.i(TAG, "Received getNextInApp")
-                iInAppMessageManagerListener.inAppDisplayAttempts += 1
+                brazelog(I) { "Received getNextInApp" }
+                iInAppMessageManagerListener!!.inAppDisplayAttempts += 1
                 return BrazeInAppMessageManager.getInstance().requestDisplayInAppMessage()
             }
             "registerAppboyPushMessages", "setRegisteredPushToken" -> {
