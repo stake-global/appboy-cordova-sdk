@@ -64,7 +64,7 @@
   // Set the time interval for session time out (in seconds)
   NSNumber *sessionTimeout = [[[NSNumberFormatter alloc] init] numberFromString:self.sessionTimeout];
   appboyLaunchOptions[ABKSessionTimeoutKey] = sessionTimeout;
-    
+
   // Add the endpoint only if it's non nil
   if (self.apiEndpoint != nil) {
     appboyLaunchOptions[ABKEndpointKey] = self.apiEndpoint;
@@ -155,6 +155,10 @@
   NSLog(@"Display next in-app");
   self.inAppDisplayAttempts +=1;
   [[Appboy sharedInstance].inAppMessageController displayNextInAppMessage];
+
+  NSString* successString = @"OK";
+  CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:successString];
+  [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
 
 - (NSInteger)inAppMessagesRemainingOnStack:(CDVInvokedUrlCommand *)command {

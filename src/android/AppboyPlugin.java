@@ -118,6 +118,7 @@ public class AppboyPlugin extends CordovaPlugin {
       case "getNextInApp":
         Log.i(TAG, "Received getNextInApp");
         iInAppMessageManagerListener.inAppDisplayAttempts += 1;
+        callbackContext.success();
         return BrazeInAppMessageManager.getInstance().requestDisplayInAppMessage();
       case "registerAppboyPushMessages":
         Braze.getInstance(mApplicationContext).setRegisteredPushToken(args.getString(0));
