@@ -59,7 +59,7 @@
   appboyLaunchOptions[ABKEnableGeofencesKey] = self.enableGeofences;
   appboyLaunchOptions[ABKInAppMessageControllerDelegateKey] = self;
   self.inAppDisplayAttempts = 0;
-  appboyLaunchOptions[ABKMinimumTriggerTimeIntervalKey] = @(5);
+  appboyLaunchOptions[ABKMinimumTriggerTimeIntervalKey] = @(1);
 
   // Set the time interval for session time out (in seconds)
   NSNumber *sessionTimeout = [[[NSNumberFormatter alloc] init] numberFromString:self.sessionTimeout];
