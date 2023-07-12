@@ -171,6 +171,7 @@
 }
 
 - (ABKInAppMessageDisplayChoice)beforeInAppMessageDisplayed:(ABKInAppMessage *)inAppMessage {
+  inAppMessage.animateIn = false;
   if (self.inAppDisplayAttempts >= 1) {
     NSLog(@"Set in-app to display now");
     return ABKDisplayInAppMessageNow;

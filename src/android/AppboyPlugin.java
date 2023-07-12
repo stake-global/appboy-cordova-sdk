@@ -87,6 +87,7 @@ public class AppboyPlugin extends CordovaPlugin {
   private Context mApplicationContext;
 
   public CustomInAppMessageManagerListener iInAppMessageManagerListener;
+  public CustomInAppMessageAnimationFactory iInAppMessageAnimationFactory;
   private final Map<String, IEventSubscriber<FeedUpdatedEvent>> mFeedSubscriberMap = new ConcurrentHashMap<>();
 
   @Override
@@ -449,6 +450,8 @@ public class AppboyPlugin extends CordovaPlugin {
     final boolean enableRequestFocusFix = cordovaPreferences.getBoolean(ENABLE_CORDOVA_WEBVIEW_REQUEST_FOCUS_FIX_PREFERENCE, true);
     iInAppMessageManagerListener = new CustomInAppMessageManagerListener(this.cordova.getActivity());
     BrazeInAppMessageManager.getInstance().setCustomInAppMessageManagerListener(iInAppMessageManagerListener);
+    iInAppMessageAnimationFactory = new CustomInAppMessageAnimationFactory(this.cordova.getActivity());
+    BrazeInAppMessageManager.getInstance().setCustomInAppMessageAnimationFactory(iInAppMessageAnimationFactory);
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P && enableRequestFocusFix) {
       // Addresses Cordova bug in https://issuetracker.google.com/issues/36915710
       BrazeInAppMessageManager.getInstance().setCustomInAppMessageViewWrapperFactory(new CordovaInAppMessageViewWrapper.CordovaInAppMessageViewWrapperFactory());
