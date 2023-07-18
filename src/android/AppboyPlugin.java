@@ -439,6 +439,7 @@ public class AppboyPlugin extends CordovaPlugin {
     if (cordovaPreferences.contains(ENABLE_GEOFENCES_PREFERENCE)) {
       configBuilder.setGeofencesEnabled(cordovaPreferences.getBoolean(ENABLE_GEOFENCES_PREFERENCE, false));
     }
+    configBuilder.setTriggerActionMinimumTimeIntervalSeconds(1);
     if (cordovaPreferences.contains(CUSTOM_API_ENDPOINT_PREFERENCE)) {
       final String customApiEndpoint = cordovaPreferences.getString(CUSTOM_API_ENDPOINT_PREFERENCE, "");
       if (!customApiEndpoint.equals("")) {
