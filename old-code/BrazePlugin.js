@@ -1,8 +1,8 @@
-var AppboyPlugin = function () {};
+var BrazePlugin = function () {};
 
 // Braze methods
 /**
- * When a user first uses Appboy on a device they are considered "anonymous". Use this method to identify a user
+ * When a user first uses Braze on a device they are considered "anonymous". Use this method to identify a user
  *    with a unique ID, which enables the following:
  *
  *    - If the same user is identified on another device, their user profile, usage history and event history will
@@ -15,7 +15,7 @@ var AppboyPlugin = function () {};
  *    existing user ID), the current session for the previous user (anonymous or not) is automatically ended and
  *    a new session is started. Similarly, following a call to changeUser, any events which fire are guaranteed to
  *    be for the new user -- if an in-flight server request completes for the old user after the user switch no
- *    events will fire, so you do not need to worry about filtering out events from Appboy for old users.
+ *    events will fire, so you do not need to worry about filtering out events from Braze for old users.
  *
  * Additionally, if you identify a user which has never been identified on another device, the entire history of
  *    that user as an "anonymous" user on this device will be preserved and associated with the newly identified
@@ -33,6 +33,7 @@ var AppboyPlugin = function () {};
  *    to target while logged out and switching back to that user ID as part of your app's logout process.
  *
  * @param {string} userId - A unique identifier for this user.
+ * @param {string} sdkAuthenticationToken - A JWT token used for SDK Authentication.
  */
 AppboyPlugin.prototype.changeUser = function (userId) {
   cordova.exec(null, null, "AppboyPlugin", "changeUser", [userId]);
@@ -154,7 +155,6 @@ AppboyPlugin.prototype.logPurchase = function (
   ]);
 };
 
-// Appboy user methods
 /**
  * Sets the attribution information for the user. For in apps that have an install tracking integration.
  */
@@ -551,13 +551,6 @@ AppboyPlugin.prototype.getContentCardsFromCache = function (
 };
 
 /**
- * Launches a default Content Cards UI element.
- */
-AppboyPlugin.prototype.launchContentCards = function () {
-  cordova.exec(null, null, "AppboyPlugin", "launchContentCards");
-};
-
-/**
  * Logs a click for the given Content Card id.
  */
 AppboyPlugin.prototype.logContentCardClicked = function (cardId) {
@@ -647,4 +640,40 @@ AppboyPlugin.prototype["ContentCardTypes"] = {
   CAPTIONED: "Captioned",
 };
 
+/**
+ * Sets the signature used for SDK authentication
+ * for the currently identified user.
+ *
+ * @param {string} jwtToken - SDK Authentication JWT token.
+ */
+BrazePlugin.prototype.setSdkAuthenticationSignature = function (jwtToken) {
+  cordova.exec(null, null, "BrazePlugin", "setSdkAuthenticationSignature", [
+    jwtToken,
+  ]);
+};
+
+/**
+ * Subscribes to SDK Authentication failures.
+ *
+ * Reports failures in the following JSON format:
+ * 	(string) "signature"
+ * 	(number) "errorCode"
+ * 	(string) "errorReason"
+ * 	(string) "userId"
+ */
+BrazePlugin.prototype.subscribeToSdkAuthenticationFailures = function (
+  successCallback,
+  errorCallback
+) {
+  cordova.exec(
+    successCallback,
+    errorCallback,
+    "BrazePlugin",
+    "subscribeToSdkAuthenticationFailures"
+  );
+};
+
+var AppboyPlugin = BrazePlugin;
+
+module.exports = new BrazePlugin();
 module.exports = new AppboyPlugin();
