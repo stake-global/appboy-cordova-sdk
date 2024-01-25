@@ -1,6 +1,41 @@
 var BrazePlugin = function () {};
 
 // Braze methods
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Custom Stake incorporated functions //
+
+/**
+ * Prompts for push
+ */
+BrazePlugin.prototype.promptForPush = function () {
+  cordova.exec(null, null, "BrazePlugin", "promptForPush");
+};
+
+/**
+ * Get next in-app popup
+ */
+BrazePlugin.prototype.getNextInApp = function (successCallback, errorCallback) {
+  cordova.exec(successCallback, errorCallback, "BrazePlugin", "getNextInApp");
+};
+
+/**
+ * Get number of in-app popups remaining on stack
+ */
+BrazePlugin.prototype.inAppMessagesRemainingOnStack = function (
+  successCallback,
+  errorCallback
+) {
+  cordova.exec(
+    successCallback,
+    errorCallback,
+    "BrazePlugin",
+    "inAppMessagesRemainingOnStack"
+  );
+};
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 /**
  * When a user first uses Braze on a device they are considered "anonymous". Use this method to identify a user
  *    with a unique ID, which enables the following:

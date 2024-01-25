@@ -1,4 +1,4 @@
-// TODO: this needs to be converted over to .kt and integrated
+// TODO: Joel: this needs to be converted over to .kt and integrated - file set up named CustomInAppMessageManagerListener.kt
 
 package com.appboy.cordova;
 

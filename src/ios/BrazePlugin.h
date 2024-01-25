@@ -8,6 +8,8 @@
 @property id<BrazeIDFADelegate> idfaDelegate;
 @property NSMutableArray<BRZCancellable *> *subscriptions;
 
+@property int inAppDisplayAttempts;
+
 /// Static Braze instance provided as a convenience method for compatibility.
 ///
 /// Accessing this property before initializing the Braze plugin will return a `nil` value.
@@ -24,6 +26,10 @@
 - (void)wipeData:(CDVInvokedUrlCommand *)command;
 - (void)requestImmediateDataFlush:(CDVInvokedUrlCommand *)command;
 - (void)getDeviceId:(CDVInvokedUrlCommand *)command;
+
+/*-------Custom Stake integrations-------*/
+- (void) getNextInApp:(CDVInvokedUrlCommand *)command;
+- (void) promptForPush:(CDVInvokedUrlCommand *)command;
 
 /*-------Braze.User-------*/
 - (void)setFirstName:(CDVInvokedUrlCommand *)command;

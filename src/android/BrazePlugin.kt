@@ -25,6 +25,12 @@ import com.braze.support.requestPushPermissionPrompt
 import com.braze.ui.activities.BrazeFeedActivity
 import com.braze.ui.activities.ContentCardsActivity
 import com.braze.ui.inappmessage.BrazeInAppMessageManager
+
+import com.braze.models.inappmessage.IInAppMessage;
+import com.braze.models.inappmessage.IInAppMessageThemeable;
+import com.braze.ui.inappmessage.InAppMessageOperation;
+import com.braze.ui.inappmessage.listeners.IInAppMessageManagerListener;
+
 import org.apache.cordova.CallbackContext
 import org.apache.cordova.CordovaPlugin
 import org.apache.cordova.CordovaPreferences

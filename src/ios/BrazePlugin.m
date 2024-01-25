@@ -56,10 +56,15 @@ static Braze *_braze;
   BRZConfiguration *configuration = [[BRZConfiguration alloc] initWithApiKey:self.APIKey
                                                                     endpoint:self.apiEndpoint];
   [configuration.api setSdkFlavor:BRZSDKFlavorCordova];
-  
+
   // Set location collection and geofences from preferences
   [configuration.location setGeofencesEnabled:self.enableGeofences];
   [configuration.location setAutomaticLocationCollection:self.enableLocationCollection];
+
+  // TODO: Joel: old code to be accommodates
+  // appboyLaunchOptions[ABKInAppMessageControllerDelegateKey] = self;
+  // self.inAppDisplayAttempts = 0;
+  // appboyLaunchOptions[ABKMinimumTriggerTimeIntervalKey] = @(1);
 
   // Set the time interval for session time out (in seconds)
   NSNumber *timeout = [[[NSNumberFormatter alloc] init] numberFromString:self.sessionTimeout];
@@ -105,6 +110,73 @@ static Braze *_braze;
       }
     }];
     [[UIApplication sharedApplication] registerForRemoteNotifications];
+  }
+}
+
+// Custom Stake integrations
+- (void)promptForPush:(CDVInvokedUrlCommand *)command {
+  UIUserNotificationType notificationSettingTypes = (UIUserNotificationTypeBadge | UIUserNotificationTypeAlert | UIUserNotificationTypeSound);
+    if (floor(NSFoundationVersionNumber) > NSFoundationVersionNumber_iOS_9_x_Max) {
+      UNUserNotificationCenter *center = [UNUserNotificationCenter currentNotificationCenter];
+      // If the delegate hasn't been set yet, set it here in the plugin
+      if (center.delegate == nil) {
+        center.delegate = [UIApplication sharedApplication].delegate;
+      }
+      UNAuthorizationOptions options = UNAuthorizationOptionAlert | UNAuthorizationOptionSound | UNAuthorizationOptionBadge;
+      if (@available(iOS 12.0, *)) {
+        // options = options | UNAuthorizationOptionProvisional;
+      }
+      [center requestAuthorizationWithOptions:options
+                            completionHandler:^(BOOL granted, NSError *_Nullable error) {
+                              NSLog(@"Permission granted.");
+                              NSLog(@"Permission granted.");
+                              // [[Appboy sharedInstance] pushAuthorizationFromUserNotificationCenter:granted]; // old code
+                              [self.braze pushAuthorizationFromUserNotificationCenter:granted];
+                            }];
+      [[UIApplication sharedApplication] registerForRemoteNotifications];
+      NSString* callbackId = command.callbackId;
+      NSString* packageName = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleIdentifier"];
+      CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:packageName];
+      [self.commandDelegate sendPluginResult:pluginResult callbackId:callbackId];
+    } else if (floor(NSFoundationVersionNumber) > NSFoundationVersionNumber_iOS_7_1) {
+      UIUserNotificationSettings *settings = [UIUserNotificationSettings settingsForTypes:notificationSettingTypes categories:nil];
+      [[UIApplication sharedApplication] registerForRemoteNotifications];
+      [[UIApplication sharedApplication] registerUserNotificationSettings:settings];
+    } else {
+      [[UIApplication sharedApplication] registerForRemoteNotificationTypes: notificationSettingTypes];
+    }
+  }
+
+- (void)getNextInApp:(CDVInvokedUrlCommand *)command {
+  NSLog(@"Display next in-app");
+  self.inAppDisplayAttempts +=1;
+  [self.braze.inAppMessageController displayNextInAppMessage];
+  // [[Appboy sharedInstance].inAppMessageController displayNextInAppMessage]; // old code
+
+  NSString* successString = @"OK";
+  CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:successString];
+  [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+}
+
+- (NSInteger)inAppMessagesRemainingOnStack:(CDVInvokedUrlCommand *)command {
+  NSLog(@"Getting messages");
+  // int inAppRemaining =  [[Appboy sharedInstance].inAppMessageController inAppMessagesRemainingOnStack]; // old code
+  int inAppRemaining =  [self.braze.inAppMessageController inAppMessagesRemainingOnStack];
+  NSString* myNewString = [NSString stringWithFormat:@"%i remaining", inAppRemaining];
+  NSLog(myNewString);
+  [self sendCordovaSuccessPluginResultWithInt:inAppRemaining andCommand:command];
+  return inAppRemaining;
+}
+
+- (ABKInAppMessageDisplayChoice)beforeInAppMessageDisplayed:(ABKInAppMessage *)inAppMessage {
+  inAppMessage.animateIn = false;
+  inAppMessage.animateOut = false;
+  if (self.inAppDisplayAttempts >= 1) {
+    NSLog(@"Set in-app to display now");
+    return ABKDisplayInAppMessageNow;
+  } else {
+    NSLog(@"Set in-app to display later");
+    return ABKDisplayInAppMessageLater;
   }
 }
 
@@ -420,7 +492,7 @@ static Braze *_braze;
 
 - (void)launchContentCards:(CDVInvokedUrlCommand *)command {
   [self.braze.contentCards requestRefresh];
-  
+
   BRZContentCardUIModalViewController *contentCardsModal = [[BRZContentCardUIModalViewController alloc] initWithBraze:self.braze];
   UIWindow *keyWindow = [[UIApplication sharedApplication] keyWindow];
   UIViewController *mainViewController = keyWindow.rootViewController;
@@ -437,7 +509,7 @@ static Braze *_braze;
     [self sendCordovaErrorPluginResultWithString:@"Category could not be set." andCommand:command];
     return;
   }
-  
+
   NSMutableArray *mappedCards = [NSMutableArray array];
   NSError *e = nil;
 
@@ -462,7 +534,7 @@ static Braze *_braze;
     [self sendCordovaErrorPluginResultWithString:@"Category could not be set." andCommand:command];
     return;
   }
-  
+
   NSInteger cardCount = 0;
   for (BRZNewsFeedCard *card_item in self.braze.newsFeed.cards) {
     int cardItemMask = [self getMaskFromCategories:card_item.categories];
@@ -609,7 +681,7 @@ static Braze *_braze;
 
 + (NSDictionary *)formattedContentCard:(BRZContentCardRaw *)card {
   NSMutableDictionary *formattedContentCardData = [NSMutableDictionary dictionary];
-  
+
   formattedContentCardData[@"id"] = card.identifier;
   formattedContentCardData[@"created"] = @(card.createdAt);
   formattedContentCardData[@"expiresAt"] = @(card.expiresAt);
@@ -620,11 +692,11 @@ static Braze *_braze;
   formattedContentCardData[@"dismissible"] = @(card.dismissible);
   formattedContentCardData[@"url"] = [card.url absoluteString] ?: [NSNull null];
   formattedContentCardData[@"openURLInWebView"] = @(card.useWebView);
-  
+
   if (card.extras != nil) {
     formattedContentCardData[@"extras"] = [BrazePlugin getJsonFromExtras:card.extras];
   }
-  
+
   switch (card.type) {
     case BRZContentCardRawTypeClassic:
       formattedContentCardData[@"image"] = [card.image absoluteString] ?: [NSNull null];
@@ -671,7 +743,7 @@ static Braze *_braze;
 - (void)getFeatureFlag:(CDVInvokedUrlCommand *)command {
   NSString *featureFlagId = [command argumentAtIndex:0 withDefault:nil];
   BRZFeatureFlag *featureFlag = [self.braze.featureFlags featureFlagWithId:featureFlagId];
-  
+
   NSError* error = nil;
   id flagJSON = [NSJSONSerialization JSONObjectWithData:[featureFlag json]
                                                 options:NSJSONReadingMutableContainers
@@ -762,7 +834,7 @@ static Braze *_braze;
       NSLog(@"Failed to serialize Feature Flag with error: %@", error);
     }
   }
-  
+
   return mappedFlags;
 }
 
