@@ -1,3 +1,92 @@
+⚠️ In version 2.33.0, we changed the iOS bridge from AppboyKit, which is written in Objective-C, to the new [Swift SDK](https://github.com/braze-inc/braze-swift-sdk). If you are upgrading from a version below 2.33.0 to a version above 2.33.0, please read [the instructions](https://github.com/braze-inc/braze-cordova-sdk/blob/master/CHANGELOG.md#2330) to ensure a smooth transition and backward compatibility.
+
+## 9.0.0
+
+##### Breaking
+- Updated the native iOS bridge [from Braze Swift SDK 7.7.0 to 9.0.0](https://github.com/braze-inc/braze-swift-sdk/compare/7.7.0...9.0.0#diff-06572a96a58dc510037d5efa622f9bec8519bc1beab13c9f251e97e657a9d4ed).
+
+##### Added
+- Added support to modify the allow list for Braze tracking properties via the following JavaScript properties and methods:
+  - `TrackingProperty` string enum
+  - `TrackingPropertyAllowList` object interface
+  - `updateTrackingPropertyAllowList` method
+  - For details, refer to the [Braze iOS Privacy Manifest](https://www.braze.com/docs/developer_guide/platform_integration_guides/swift/privacy_manifest/) documentation.
+- Added the `setAdTrackingEnabled` method to set `adTrackingEnabled` flag on iOS and both the `adTrackingEnabled` flag and the Google Advertising ID on Android.
+- Added `BrazePlugin.subscribeToInAppMessage()` which allows you to listen for new in-app messages from the JavaScript plugin and choose whether or not to use the default Braze UI to display in-app messages.
+- Added support for logging analytics and functionality for in-app messages.
+  - `BrazePlugin.logInAppMessageImpression(message)`
+  - `BrazePlugin.logInAppMessageClicked(message)`
+  - `BrazePlugin.loginAppMessageButtonClicked(message, buttonId)`
+  - `BrazePlugin.hideCurrentInAppMessage()`
+- Added support for manually performing the action of an in-app message when using a custom UI.
+  - `BrazePlugin.performInAppMessageAction(message)`
+  - `BrazePlugin.performInAppMessageButtonAction(message, buttonId)`
+- Updated the native Android bridge [from Braze Android SDK 30.1.1 to 30.3.0](https://github.com/braze-inc/braze-android-sdk/compare/v30.1.1...v30.3.0#diff-06572a96a58dc510037d5efa622f9bec8519bc1beab13c9f251e97e657a9d4ed).
+
+## 8.1.0
+
+##### Added
+- Added new Android feature support that can be added in your `config.xml`:
+  - Ability to set the session timeout behavior to be based either on session start or session end events.
+    - `<preference name="com.braze.is_session_start_based_timeout_enabled" value="false" />`
+  - Ability to set the user-facing name as seen via `NotificationChannel.getName` for the Braze default `NotificationChannel`.
+    - `<preference name="com.braze.default_notification_channel_name" value="name" />`
+  - Ability to set the user-facing description as seen via `NotificationChannel.getDescription` for the Braze default `NotificationChannel`.
+    - `<preference name="com.braze.default_notification_channel_description" value="description" />`
+  - Ability to set whether a Push Story is automatically dismissed when clicked.
+    - `<preference name="com.braze.does_push_story_dismiss_on_click" value="true" />`
+  - Ability to set whether the use of a fallback Firebase Cloud Messaging Service is enabled.
+    - `<preference name="com.braze.is_fallback_firebase_messaging_service_enabled" value="true" />`
+  - Ability to set the classpath for the fallback Firebase Cloud Messaging Service.
+    - `<preference name="com.braze.fallback_firebase_messaging_service_classpath" value="your-classpath" />`
+  - Ability to set whether the Content Cards unread visual indication bar is enabled.
+    - `<preference name="com.braze.is_content_cards_unread_visual_indicator_enabled" value="true" />`
+  - Ability to set whether the Braze will automatically register tokens in `com.google.firebase.messaging.FirebaseMessagingService.onNewToken`.
+    - `<preference name="com.braze.is_firebase_messaging_service_on_new_token_registration_enabled" value="true" />`
+  - Ability to set whether Braze will add an activity to the back stack when automatically following deep links for push.
+    - `<preference name="com.braze.is_push_deep_link_back_stack_activity_enabled" value="true" />`
+  - Ability to set the activity that Braze will add to the back stack when automatically following deep links for push.
+    - `<preference name="com.braze.push_deep_link_back_stack_activity_class_name" value="your-class-name" />`
+  - Ability to set if Braze should automatically opt-in the user when push is authorized by Android.
+    - `<preference name="com.braze.should_opt_in_when_push_authorized" value="true" />`
+- Added new iOS feature support that can be added in your `config.xml`:
+  - Ability to set the minimum logging level for `Braze.Configuration.Logger`.
+    - `<preference name="com.braze.ios_log_level" value="2" />`
+  - Ability to set if a randomly generated UUID should be used as the device ID.
+    - `<preference name="com.braze.ios_use_uuid_as_device_id" value="YES" />`
+  - Ability to set the interval in seconds between automatic data flushes.
+    - `<preference name="com.braze.ios_flush_interval_seconds" value="10" />`
+  - Ability to set whether the request policy for `Braze.Configuration.Api` should be automatic or manual.
+    - `<preference name="com.braze.ios_use_automatic_request_policy" value="YES" />`
+  - Ability to set if a user’s notification subscription state should automatically be set to optedIn when push permissions are authorized.
+    - `<preference name="com.braze.should_opt_in_when_push_authorized" value="YES" />`
+- Added `BrazePlugin.setLastKnownLocation()` to set the last known location for the user.
+- Updated the native iOS bridge [from Braze Swift SDK 7.6.0 to 7.7.0](https://github.com/braze-inc/braze-swift-sdk/compare/7.6.0...7.7.0#diff-06572a96a58dc510037d5efa622f9bec8519bc1beab13c9f251e97e657a9d4ed).
+- Updated the native Android bridge [from Braze Android SDK 30.0.0 to 30.1.1](https://github.com/braze-inc/braze-android-sdk/compare/v30.0.0...v30.1.1#diff-06572a96a58dc510037d5efa622f9bec8519bc1beab13c9f251e97e657a9d4ed).
+
+##### Fixed
+- Fixed the `getDeviceId` method to return the value as a success instead of an error on iOS.
+
+## 8.0.0
+
+##### Breaking
+- Updated the native Android bridge [from Braze Android SDK 27.0.1 to 30.0.0](https://github.com/braze-inc/braze-android-sdk/compare/v27.0.0...v30.0.0#diff-06572a96a58dc510037d5efa622f9bec8519bc1beab13c9f251e97e657a9d4ed).
+- Updated the native iOS bridge [from Braze Swift SDK 6.6.0 to 7.6.0](https://github.com/braze-inc/braze-swift-sdk/compare/6.6.0...7.6.0#diff-06572a96a58dc510037d5efa622f9bec8519bc1beab13c9f251e97e657a9d4ed).
+- Renamed the `Banner` Content Card type to `ImageOnly`:
+  - `ContentCardTypes.BANNER` → `ContentCardTypes.IMAGE_ONLY`
+  - On Android, if the XML files in your project contain the word `banner` for Content Cards, it should be replaced with `image_only`.
+- `BrazePlugin.getFeatureFlag(id)` will now return `null` if the feature flag does not exist.
+- `BrazePlugin.subscribeToFeatureFlagsUpdates(function)` will only trigger when a refresh request completes with success or failure, and upon initial subscription if there was previously cached data from the current session.
+- Removed the deprecated method `registerAppboyPushMessages`. Use `setRegisteredPushToken` instead.
+
+##### Added
+- Added the ability to set a minimum trigger action time interval for Android and iOS.
+  - To enable this feature, add the line `<preference name="com.braze.trigger_action_minimum_time_interval_seconds" value="30" />` in your `config.xml`.
+- Added the ability to configure the app group ID for iOS push extensions.
+  - To enable this feature, add the line `<preference name="com.braze.ios_push_app_group" value="your-app-group" />` in your `config.xml`.
+- Added support for automatically forwarding universal links in iOS.
+  - To enable this feature, add the line `<preference name="com.braze.ios_forward_universal_links" value="YES" />` in your `config.xml`.
+
 ## 7.0.0
 
 ##### Breaking
@@ -17,7 +106,7 @@
 
 ##### Fixed
 - Updated the native Android version [from Braze Android SDK 26.3.1 to 26.3.2](https://github.com/braze-inc/braze-android-sdk/blob/master/CHANGELOG.md#2632).
-  
+
 ## 6.0.0
 
 ##### Breaking
@@ -52,7 +141,7 @@
 ##### Breaking
 - Renamed instances of `Appboy` to `Braze`.
   - To ensure that your project is properly migrated to the new naming conventions, note and replace the following instances in your project:
-    - The plugin has been renamed from `cordova-plugin-appboy` to `cordova-plugin-braze`. 
+    - The plugin has been renamed from `cordova-plugin-appboy` to `cordova-plugin-braze`.
       - Ensure that you run `cordova plugin remove cordova-plugin-appboy` and then re-add the plugin using the instructions in the [README](./README.md).
     - This GitHub repository has been moved to the URL `https://github.com/braze-inc/braze-cordova-sdk`.
     - In your project's `config.xml` file, rename instances of `com.appboy` to `com.braze` for each of your configuration property keys.
@@ -86,11 +175,12 @@
 ##### Breaking
 - Migrated the iOS plugin to use the new [Braze Swift SDK](https://github.com/braze-inc/braze-swift-sdk) (5.8.1).
   - News Feed UI is no longer supported on iOS.
+  - This migration requires re-identifying users. To do so, you must call the `changeUser` method on the Braze instance for non-anonymous users. You can read more about it [here](https://braze-inc.github.io/braze-swift-sdk/documentation/braze/appboy-migration-guide/#Re-identify-users).
 
 ## 2.32.0
 
 ##### Breaking
-- Updated to [Braze Android SDK 24.1.0](https://github.com/Appboy/appboy-android-sdk/releases/tag/v24.1.0).
+- Updated to [Braze Android SDK 24.1.0](https://github.com/braze-inc/braze-android-sdk/releases/tag/v24.1.0).
 - Updated the Android bridge to Kotlin.
   - `<preference name="GradlePluginKotlinEnabled" value="true" />` is now required in your `config.xml`.
 - Removed `setAvatarImageUrl()`.
@@ -104,7 +194,7 @@
 ## 2.31.0
 
 ##### Breaking
-- Updated to [Braze Android SDK 23.0.1](https://github.com/Appboy/appboy-android-sdk/releases/tag/v23.0.1).
+- Updated to [Braze Android SDK 23.0.1](https://github.com/braze-inc/braze-android-sdk/releases/tag/v23.0.1).
 
 ##### Added
 - Added a method `requestPushPermission()` for Android API 33 to request push permission prompts from the system on Android 13 devices.
@@ -121,21 +211,21 @@
 ## 2.30.0
 
 ##### Breaking
-- Updated to [Braze Android SDK 21.0.0](https://github.com/Appboy/appboy-android-sdk/releases/tag/v21.0.0).
+- Updated to [Braze Android SDK 21.0.0](https://github.com/braze-inc/braze-android-sdk/releases/tag/v21.0.0).
 - Removed "logContentCardsDisplayed" from the javascript plugin.
 
 ## 2.29.0
 
 ##### Breaking
-- Updated to [Braze Android SDK 19.0.0](https://github.com/Appboy/appboy-android-sdk/releases/tag/v19.0.0).
+- Updated to [Braze Android SDK 19.0.0](https://github.com/braze-inc/braze-android-sdk/releases/tag/v19.0.0).
 
 ##### Changed
-- Updated to [Braze iOS SDK 4.4.2](https://github.com/Appboy/appboy-ios-sdk/releases/tag/4.4.2).
+- Updated to [Braze iOS SDK 4.4.2](https://github.com/braze-inc/braze-ios-sdk/releases/tag/4.4.2).
 
 ## 2.28.0
 
 ##### Breaking
-- Updated to [Braze Android SDK 18.0.1](https://github.com/Appboy/appboy-android-sdk/releases/tag/v18.0.1).
+- Updated to [Braze Android SDK 18.0.1](https://github.com/braze-inc/braze-android-sdk/releases/tag/v18.0.1).
 
 ##### Fixed
 - Fixed an error around locating certain iOS resources when integrating the SDK.
@@ -143,8 +233,8 @@
 ## 2.27.0
 
 ##### Breaking
-- Updated to [Braze Android SDK 17.0.0](https://github.com/Appboy/appboy-android-sdk/releases/tag/v17.0.0).
-- Updated to [Braze iOS SDK 4.4.0](https://github.com/Appboy/appboy-ios-sdk/releases/tag/4.4.0).
+- Updated to [Braze Android SDK 17.0.0](https://github.com/braze-inc/braze-android-sdk/releases/tag/v17.0.0).
+- Updated to [Braze iOS SDK 4.4.0](https://github.com/braze-inc/braze-ios-sdk/releases/tag/4.4.0).
 
 ##### Added
 - Added `addToSubscriptionGroup()` and `removeFromSubscriptionGroup()`.
@@ -152,7 +242,7 @@
 ## 2.26.0
 
 ##### Breaking
-- Updated to [Braze Android SDK 16.0.0](https://github.com/Appboy/appboy-android-sdk/releases/tag/v16.0.0).
+- Updated to [Braze Android SDK 16.0.0](https://github.com/braze-inc/braze-android-sdk/releases/tag/v16.0.0).
 
 ##### Fixed
 - Fixed an issue in pre Android P WebViews where the system WebView would not properly handle view focus being returned to it.
@@ -163,10 +253,10 @@
 ## 2.25.0
 
 ##### Breaking
-- Updated to [Braze Android SDK 15.0.0](https://github.com/Appboy/appboy-android-sdk/releases/tag/v15.0.0).
+- Updated to [Braze Android SDK 15.0.0](https://github.com/braze-inc/braze-android-sdk/releases/tag/v15.0.0).
 
 ##### Changed
-- Updated to [Braze iOS SDK 4.3.2](https://github.com/Appboy/appboy-ios-sdk/releases/tag/4.3.2).
+- Updated to [Braze iOS SDK 4.3.2](https://github.com/braze-inc/braze-ios-sdk/releases/tag/4.3.2).
 
 ##### Added
 - Added `Other`, `Unknown`, `Not Applicable`, and `Prefer not to Say` options for user gender.
@@ -174,8 +264,8 @@
 ## 2.24.0
 
 ##### Breaking
-- Updated to [Braze Android SDK 14.0.1](https://github.com/Appboy/appboy-android-sdk/releases/tag/v14.0.1).
-- Updated to [Braze iOS SDK 4.3.0](https://github.com/Appboy/appboy-ios-sdk/releases/tag/4.3.0).
+- Updated to [Braze Android SDK 14.0.1](https://github.com/braze-inc/braze-android-sdk/releases/tag/v14.0.1).
+- Updated to [Braze iOS SDK 4.3.0](https://github.com/braze-inc/braze-ios-sdk/releases/tag/4.3.0).
 
 ##### Changed
 - (minor) Changed logcat tag for Android plugin to be `BrazeCordova`.
@@ -183,12 +273,12 @@
 ## 2.23.0
 
 ##### Breaking
-- Updated to [Braze Android SDK 13.1.2](https://github.com/Appboy/appboy-android-sdk/releases/tag/v13.1.2).
-  
+- Updated to [Braze Android SDK 13.1.2](https://github.com/braze-inc/braze-android-sdk/blob/master/CHANGELOG.md#1312).
+
 ## 2.22.0
 
 ##### Breaking
-- Updated to [Braze Android SDK 13.0.0](https://github.com/Appboy/appboy-android-sdk/releases/tag/v13.0.0).
+- Updated to [Braze Android SDK 13.0.0](https://github.com/braze-inc/braze-android-sdk/releases/tag/v13.0.0).
 
 ##### Added
 - Added the ability to delay automatic session tracking for Android.
@@ -197,7 +287,7 @@
 ## 2.21.0
 
 ##### Breaking
-- Updated to [Braze iOS SDK 3.31.1](https://github.com/Appboy/appboy-ios-sdk/releases/tag/3.31.1).
+- Updated to [Braze iOS SDK 3.31.1](https://github.com/braze-inc/braze-ios-sdk/blob/master/CHANGELOG.md#3311).
 
 ##### Fixed
 - Fixed an issue on iOS where the plugin was incompatible with other Cordova plugins that have the `use_frameworks` Cocoapods setting in their `Podfile`.
@@ -213,8 +303,8 @@
 ## 2.19.0
 
 ##### Breaking
-- Updated to [Braze iOS SDK 3.29.1](https://github.com/Appboy/appboy-ios-sdk/releases/tag/3.29.1).
-- Updated to [Braze Android SDK 11.0.0](https://github.com/Appboy/appboy-android-sdk/releases/tag/v11.0.0).
+- Updated to [Braze iOS SDK 3.29.1](https://github.com/braze-inc/braze-ios-sdk/blob/master/CHANGELOG.md#3291).
+- Updated to [Braze Android SDK 11.0.0](https://github.com/braze-inc/braze-android-sdk/releases/tag/v11.0.0).
 
 ##### Fixed
 - Fixed an issue where the plugin would automatically add the In-app Purchase capability to XCode projects.
@@ -225,18 +315,18 @@
 ## 2.18.0
 
 ##### Breaking
-- Updated to [Braze Android SDK 10.0.0](https://github.com/Appboy/appboy-android-sdk/releases/tag/v10.0.0).
+- Updated to [Braze Android SDK 10.0.0](https://github.com/braze-inc/braze-android-sdk/releases/tag/v10.0.0).
 
 ## 2.17.0
 
 ##### Breaking
-- The native iOS bridge uses [Braze iOS SDK 3.27.0](https://github.com/Appboy/appboy-ios-sdk/blob/master/CHANGELOG.md#3270). This release adds support for iOS 14 and requires XCode 12. Please read the Braze iOS SDK changelog for details.
+- The native iOS bridge uses [Braze iOS SDK 3.27.0](https://github.com/braze-inc/braze-ios-sdk/blob/master/CHANGELOG.md#3270). This release adds support for iOS 14 and requires XCode 12. Please read the Braze iOS SDK changelog for details.
 
 ## 2.16.0
 
 ##### Changed
-- Updated to [Braze Android SDK 8.1.0](https://github.com/Appboy/appboy-android-sdk/releases/tag/v8.1.0).
-- Updated to [Braze iOS SDK 3.26.1](https://github.com/Appboy/appboy-ios-sdk/releases/tag/3.26.1).
+- Updated to [Braze Android SDK 8.1.0](https://github.com/braze-inc/braze-android-sdk/releases/tag/v8.1.0).
+- Updated to [Braze iOS SDK 3.26.1](https://github.com/braze-inc/braze-ios-sdk/blob/master/CHANGELOG.md#3261).
 
 ##### Added
 - Added the ability to display notifications while app is in the foreground in iOS. Within `config.xml` set `com.appboy.display_foreground_push_notifications` to `"YES"` to enable this.
@@ -244,14 +334,14 @@
 ## 2.15.0
 
 ##### Changed
-- Updated to [Braze iOS SDK 3.23.0](https://github.com/Appboy/appboy-ios-sdk/releases/tag/3.23.0).
-- Updated to [Braze Android SDK 8.0.1](https://github.com/Appboy/appboy-android-sdk/releases/tag/v8.0.1).
+- Updated to [Braze iOS SDK 3.23.0](https://github.com/braze-inc/braze-ios-sdk/blob/master/CHANGELOG.md#3230).
+- Updated to [Braze Android SDK 8.0.1](https://github.com/braze-inc/braze-android-sdk/releases/tag/v8.0.1).
 
 ## 2.14.0
 
 ##### Changed
 - Reverted iOS plugin to use framework tag in `plugin.xml`.
-- Updated to [Braze Android SDK 7.0.0](https://github.com/Appboy/appboy-android-sdk/releases/tag/v7.0.0).
+- Updated to [Braze Android SDK 7.0.0](https://github.com/braze-inc/braze-android-sdk/releases/tag/v7.0.0).
 
 ## 2.13.0
 
@@ -260,39 +350,39 @@
   - `getContentCardsFromServer(), getContentCardsFromCache()` both take a success and error callback to handle return values.
 
 ##### Changed
-- Updated to [Braze Android SDK 4.0.2](https://github.com/Appboy/appboy-android-sdk/releases/tag/v4.0.2).
+- Updated to [Braze Android SDK 4.0.2](https://github.com/braze-inc/braze-android-sdk/releases/tag/v4.0.2).
 
 ## 2.12.0
 
 ##### Changed
-- Updated to [Braze Android SDK 3.8.0](https://github.com/Appboy/appboy-android-sdk/releases/tag/v3.8.0).
+- Updated to [Braze Android SDK 3.8.0](https://github.com/braze-inc/braze-android-sdk/releases/tag/v3.8.0).
 - Pinned Android Gradle plugin version to 3.5.1 in `build-extras.gradle`.
-  - Addresses https://github.com/Appboy/appboy-cordova-sdk/issues/46.
+  - Addresses https://github.com/braze-inc/braze-cordova-sdk/issues/46.
 
 ## 2.11.2
 
-**Important:** This patch updates the Braze iOS SDK Dependency from 3.20.1 to 3.20.2, which contains important bugfixes. Integrators should upgrade to this patch version. Please see the [Braze iOS SDK Changelog](https://github.com/Appboy/appboy-ios-sdk/blob/master/CHANGELOG.md) for more information.
+**Important:** This patch updates the Braze iOS SDK Dependency from 3.20.1 to 3.20.2, which contains important bugfixes. Integrators should upgrade to this patch version. Please see the [Braze iOS SDK Changelog](https://github.com/braze-inc/braze-ios-sdk/blob/master/CHANGELOG.md) for more information.
 
 ##### Changed
-- Updated to [Braze iOS SDK 3.20.2](https://github.com/Appboy/appboy-ios-sdk/releases/tag/3.20.2).
+- Updated to [Braze iOS SDK 3.20.2](https://github.com/braze-inc/braze-ios-sdk/blob/master/CHANGELOG.md#3202).
 
 ## 2.11.1
 
 **Important:** This release has known issues displaying HTML in-app messages. Do not upgrade to this version and upgrade to 2.11.2 and above instead. If you are using this version, you are strongly encouraged to upgrade to 2.11.2 or above if you make use of HTML in-app messages.
 
 ##### Changed
-- Updated to [Braze iOS SDK 3.20.1](https://github.com/Appboy/appboy-ios-sdk/releases/tag/3.20.1).
+- Updated to [Braze iOS SDK 3.20.1](https://github.com/braze-inc/braze-ios-sdk/blob/master/CHANGELOG.md#3201).
 
 ## 2.11.0
 
 **Important:** This release has known issues displaying HTML in-app messages. Do not upgrade to this version and upgrade to 2.11.2 and above instead. If you are using this version, you are strongly encouraged to upgrade to 2.11.2 or above if you make use of HTML in-app messages.
 
 ##### Breaking
-- Updated to [Braze iOS SDK 3.20.0](https://github.com/Appboy/appboy-ios-sdk/releases/tag/3.20.0).
+- Updated to [Braze iOS SDK 3.20.0](https://github.com/braze-inc/braze-ios-sdk/blob/master/CHANGELOG.md#3200).
 - **Important:** Braze iOS SDK 3.20.0 contains updated push token registration methods. We recommend upgrading to this version as soon as possible to ensure a smooth transition as devices upgrade to iOS 13.
 - Removes the Feedback feature.
   - `submitFeedback()` and `launchFeedback()` have been removed from the `AppboyPlugin` interface.
-- Updated to [Braze Android SDK 3.7.0](https://github.com/Appboy/appboy-android-sdk/releases/tag/v3.7.0).
+- Updated to [Braze Android SDK 3.7.0](https://github.com/braze-inc/braze-android-sdk/releases/tag/v3.7.0).
 
 ##### Added
 - Added ability to configure location collection in preferences. Braze location collection is now disabled by default.
@@ -301,16 +391,16 @@
 - Added ability to configure geofences in preferences. Note that the geofences branch is still required to use Braze Geofences out of the box.
   - Set `com.appboy.geofences_enabled` to `true/false` on Android.
   - Set `com.appboy.geofences_enabled` to `YES/NO` on iOS.
-  
+
 ## 2.10.1
 
 ##### Fixed
-- Fixed an issue in the iOS plugin where custom endpoints were not correctly getting substituted for the actual server endpoints. 
+- Fixed an issue in the iOS plugin where custom endpoints were not correctly getting substituted for the actual server endpoints.
 
 ## 2.10.0
 
 ##### Breaking
-- Updated to [Braze iOS SDK 3.14.1](https://github.com/Appboy/appboy-ios-sdk/releases/tag/3.14.1).
+- Updated to [Braze iOS SDK 3.14.1](https://github.com/braze-inc/braze-ios-sdk/blob/master/CHANGELOG.md#3141).
 
 ##### Added
 - Added ability for plugin to automatically collect the IDFA information on iOS. To enable, set `com.appboy.ios_enable_idfa_automatic_collection` to `YES` in your `config.xml` project file.
@@ -322,13 +412,13 @@
 
 ##### Fixed
 - Fixed an issue in the Android plugin where the Braze SDK could be invoked before `pluginInitialize` was called by Cordova. The plugin now explicitly initializes the SDK before any SDK or Android lifecycle methods are called.
-  - Fixes https://github.com/Appboy/appboy-cordova-sdk/issues/38
+  - Fixes https://github.com/braze-inc/braze-cordova-sdk/issues/38
 
 ## 2.9.0
 
 ##### Breaking
-- Updated to [Braze iOS SDK 3.14.0](https://github.com/Appboy/appboy-ios-sdk/releases/tag/3.14.0).
-- Updated to [Braze Android SDK 3.2.2](https://github.com/Appboy/appboy-android-sdk/blob/master/CHANGELOG.md#322).
+- Updated to [Braze iOS SDK 3.14.0](https://github.com/braze-inc/braze-ios-sdk/blob/master/CHANGELOG.md#3140).
+- Updated to [Braze Android SDK 3.2.2](https://github.com/braze-inc/braze-android-sdk/blob/master/CHANGELOG.md#322).
 
 ##### Changed
 - Changed the iOS plugin to use Cocoapods instead of a framework integration.
@@ -336,7 +426,7 @@
 
 ##### Fixed
 - Fixed the Android plugin not respecting decimal purchase prices.
-  - Fixes https://github.com/Appboy/appboy-cordova-sdk/issues/36.
+  - Fixes https://github.com/braze-inc/braze-cordova-sdk/issues/36.
 
 ## 2.8.0
 - Changed the iOS frameworks to be automatically embedded in the `plugin.xml`.
@@ -390,7 +480,7 @@
 - Updates Appboy Android version to 1.18+
 - Updates Appboy iOS version to 2.25.0
 - Adds the ability to configure the Android Cordova SDK using the config.xml. See the Android sample-project's `config.xml` for an example.
-    - Supported keys below, see [the AppboyConfig.Builder javadoc](http://appboy.github.io/appboy-android-sdk/javadocs/com/appboy/configuration/AppboyConfig.Builder.html) for more details
+    - Supported keys below, see [the AppboyConfig.Builder javadoc](https://appboy.github.io/appboy-android-sdk/javadocs/com/braze/configuration/BrazeConfig.Builder.html) for more details
     - "com.appboy.api_key" (String)
     - "com.appboy.android_automatic_push_registration_enabled" ("true"/"false")
     - "com.appboy.android_gcm_sender_id" (String)
@@ -400,7 +490,7 @@
     - "com.appboy.android_default_session_timeout" (String)
     - "com.appboy.android_handle_push_deep_links_automatically" ("true"/"false")
     - "com.appboy.android_log_level" (Integer) can also be configured here, for obtaining debug logs from the Appboy Android SDK
-- Updates the Android Cordova SDK to use the [Appboy Lifecycle listener](http://appboy.github.io/appboy-android-sdk/javadocs/com/appboy/AppboyLifecycleCallbackListener.html) to handle session and in-app message registration
+- Updates the Android Cordova SDK to use the [Appboy Lifecycle listener](https://appboy.github.io/appboy-android-sdk/javadocs/com/braze/BrazeActivityLifecycleCallbackListener.html) to handle session and in-app message registration
 
 ## 2.1.0
 - Adds support for iOS 10 push registration and handling using the UNUserNotificationCenter.
@@ -408,7 +498,7 @@
 
 ## 2.0.0
 - Updates to add functionality for turning off automatic push registration on iOS.  If you want to turn off iOS default push registration, add the preference `com.appboy.ios_disable_automatic_push_registration` with a value of `YES`.
-- Includes patch for iOS 10 push open bug.  See https://github.com/Appboy/appboy-ios-sdk/releases/tag/2.24.0 for more information.
+- Includes patch for iOS 10 push open bug.  See https://github.com/braze-inc/braze-ios-sdk/blob/master/CHANGELOG.md#2240 for more information.
 - Updates Appboy iOS version to 2.24.2.
 - Updates Appboy Android version to 1.15+.
 - Updates plugin to configure Android via parameters to eliminate need for post-install modifications on Android. Ported from https://github.com/Appboy/appboy-cordova-sdk/tree/feature/android-variable-integration.

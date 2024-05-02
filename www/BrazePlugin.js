@@ -36,6 +36,7 @@ BrazePlugin.prototype.inAppMessagesRemainingOnStack = function (
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// Braze methods
 /**
  * When a user first uses Braze on a device they are considered "anonymous". Use this method to identify a user
  *    with a unique ID, which enables the following:
@@ -82,19 +83,6 @@ BrazePlugin.prototype.changeUser = function (userId, sdkAuthenticationToken) {
  *
  * Registers the device as eligible to receive push notifications from Braze.
  *
- * @param {string} registrationId - The registration ID / push token.
- */
-BrazePlugin.prototype.registerAppboyPushMessages = function (registrationID) {
-  cordova.exec(null, null, "BrazePlugin", "registerAppboyPushMessages", [
-    registrationID,
-  ]);
-};
-
-/**
- * ** ANDROID ONLY**
- *
- * Registers the device as eligible to receive push notifications from Braze.
- *
  * @param {string} pushToken - The registration ID / push token.
  */
 BrazePlugin.prototype.setRegisteredPushToken = function (pushToken) {
@@ -110,6 +98,90 @@ BrazePlugin.prototype.setRegisteredPushToken = function (pushToken) {
  */
 BrazePlugin.prototype.requestPushPermission = function () {
   cordova.exec(null, null, "BrazePlugin", "requestPushPermission");
+};
+
+/**
+ * Updates the list of data types you wish to declare or remove as tracked user data.
+ *
+ * For more details, refer to Braze's [Privacy Manifest documentation]
+ * (https://www.braze.com/docs/developer_guide/platform_integration_guides/swift/privacy_manifest/).
+ *
+ * No-op on Android.
+ *
+ * @param {TrackingPropertyAllowList} allowList - The list of tracking properties to update.
+ *
+ */
+BrazePlugin.prototype.updateTrackingPropertyAllowList = async function (
+  allowList
+) {
+  if (allowList.adding && !isValidTrackingPropertyArray(allowList.adding)) {
+    console.log(
+      "'adding' property must be an array of strings. Setting array to empty."
+    );
+    allowList.adding = [];
+  }
+  if (allowList.removing && !isValidTrackingPropertyArray(allowList.removing)) {
+    console.log(
+      "'removing' property must be an array of strings. Setting array to empty."
+    );
+    allowList.removing = [];
+  }
+  if (
+    allowList.addingCustomEvents &&
+    !isValidTrackingPropertyArray(allowList.addingCustomEvents)
+  ) {
+    console.log(
+      "'addingCustomEvents' property must be an array of strings. Setting array to empty."
+    );
+    allowList.addingCustomEvents = [];
+  }
+  if (
+    allowList.removingCustomEvents &&
+    !isValidTrackingPropertyArray(allowList.removingCustomEvents)
+  ) {
+    console.log(
+      "'removingCustomEvents' property must be an array of strings. Setting array to empty."
+    );
+    allowList.removingCustomEvents = [];
+  }
+  if (
+    allowList.addingCustomAttributes &&
+    !isValidTrackingPropertyArray(allowList.addingCustomAttributes)
+  ) {
+    console.log(
+      "'addingCustomAttributes' property must be an array of strings. Setting array to empty."
+    );
+    allowList.addingCustomAttributes = [];
+  }
+  if (
+    allowList.removingCustomAttributes &&
+    !isValidTrackingPropertyArray(allowList.removingCustomAttributes)
+  ) {
+    console.log(
+      "'removingCustomAttributes' property must be an array of strings. Setting array to empty."
+    );
+    allowList.removingCustomAttributes = [];
+  }
+  cordova.exec(null, null, "BrazePlugin", "updateTrackingPropertyAllowList", [
+    allowList,
+  ]);
+};
+
+/**
+ * Informs Braze whether ad-tracking has been enabled for this device.
+ * Note that the SDK does not automatically collect this data.
+ *
+ * @param {string} adTrackingEnabled - Whether ad-tracking is enabled.
+ * @param {string} googleAdvertisingId - The Google Advertising ID. (Android only)
+ */
+BrazePlugin.prototype.setAdTrackingEnabled = function (
+  adTrackingEnabled,
+  googleAdvertisingId
+) {
+  cordova.exec(null, null, "BrazePlugin", "setAdTrackingEnabled", [
+    adTrackingEnabled,
+    googleAdvertisingId,
+  ]);
 };
 
 /**
@@ -337,6 +409,30 @@ BrazePlugin.prototype.setPhoneNumber = function (phoneNumber) {
  */
 BrazePlugin.prototype.setDateOfBirth = function (year, month, day) {
   cordova.exec(null, null, "BrazePlugin", "setDateOfBirth", [year, month, day]);
+};
+
+/**
+ * Sets the last known location for this user.
+ * @param {double} latitude
+ * @param {double} longitude
+ * @param {double} altitude (optional)
+ * @param {double} horizontalAccuracy (optional for Android)
+ * @param {double} verticalAccuracy (optional)
+ */
+BrazePlugin.prototype.setLastKnownLocation = function (
+  latitude,
+  longitude,
+  altitude,
+  horizontalAccuracy,
+  verticalAccuracy
+) {
+  cordova.exec(null, null, "BrazePlugin", "setLastKnownLocation", [
+    latitude,
+    longitude,
+    altitude,
+    horizontalAccuracy,
+    verticalAccuracy,
+  ]);
 };
 
 /**
@@ -602,6 +698,92 @@ BrazePlugin.prototype.logContentCardDismissed = function (cardId) {
 };
 
 /**
+ * Subscribes to in app messages
+ * @param {boolean} useBrazeUI - Whether to use Braze's UI for in app messages
+ */
+BrazePlugin.prototype.subscribeToInAppMessage = function (
+  successCallback,
+  errorCallback,
+  useBrazeUI = true
+) {
+  cordova.exec(
+    successCallback,
+    errorCallback,
+    "BrazePlugin",
+    "subscribeToInAppMessage",
+    [useBrazeUI]
+  );
+};
+
+/**
+ * Hides the currently displayed in-app message.
+ */
+BrazePlugin.prototype.hideCurrentInAppMessage = function () {
+  cordova.exec(null, null, "BrazePlugin", "hideCurrentInAppMessage");
+};
+
+/**
+ * Logs an impression for the provided in-app message data.
+ * @param {BrazeInAppMessage} inAppMessage
+ */
+BrazePlugin.prototype.logInAppMessageImpression = function (inAppMessage) {
+  cordova.exec(null, null, "BrazePlugin", "logInAppMessageImpression", [
+    inAppMessage,
+  ]);
+};
+
+/**
+ * Logs a click for the provided in-app message data.
+ * @param {BrazeInAppMessage} inAppMessage
+ */
+BrazePlugin.prototype.logInAppMessageClicked = function (inAppMessage) {
+  cordova.exec(null, null, "BrazePlugin", "logInAppMessageClicked", [
+    inAppMessage,
+  ]);
+};
+
+/**
+ * Logs a button click for the provided in-app message button data.
+ * @param {BrazeInAppMessage} inAppMessage
+ * @param {integer} buttonId
+ */
+BrazePlugin.prototype.logInAppMessageButtonClicked = function (
+  inAppMessage,
+  buttonId
+) {
+  cordova.exec(null, null, "BrazePlugin", "logInAppMessageButtonClicked", [
+    inAppMessage,
+    buttonId,
+  ]);
+};
+
+/**
+ * Performs the action for an in-app message.
+ * @param {BrazeInAppMessage} inAppMessage
+ */
+BrazePlugin.prototype.performInAppMessageAction = function (inAppMessage) {
+  cordova.exec(null, null, "BrazePlugin", "performInAppMessageAction", [
+    inAppMessage,
+    -1,
+  ]);
+};
+
+/**
+ * Performs the action for an in-app message button.
+ * @param {BrazeInAppMessage} inAppMessage
+ * @param {integer} buttonId
+ */
+BrazePlugin.prototype.performInAppMessageButtonAction = function (
+  inAppMessage,
+  buttonId
+) {
+  cordova.exec(null, null, "BrazePlugin", "performInAppMessageAction", [
+    inAppMessage,
+    buttonId,
+  ]);
+};
+
+/**
  * Sets the language for a user. Language Strings should be valid ISO 639-1 language codes. See loc.gov/standards/iso639-2/php/code_list.php.
  */
 BrazePlugin.prototype.setLanguage = function (language) {
@@ -636,9 +818,7 @@ BrazePlugin.prototype.getDeviceId = function (successCallback, errorCallback) {
  * not force a refresh.
  *
  * @param id The ID of the Feature Flag to retrieve.
- * @return A promise containing the [FeatureFlag] of the requested ID.
- * If the Feature Flag does not exist, a [FeatureFlag] will be returned with
- * enabled set to `false` and empty properties.
+ * @return A promise containing the [FeatureFlag] of the requested ID, or null if the Feature Flag does not exist.
  */
 BrazePlugin.prototype.getFeatureFlag = function (id) {
   return new Promise((resolve, reject) => {
@@ -708,7 +888,7 @@ BrazePlugin.prototype.subscribeToFeatureFlagsUpdates = function (
  * @param {string} flagId - The identifier for the Feature Flag.
  * @param {string} propertyKey - The key for the boolean property.
  *
- * @return A promise containing the boolean property requested. This should return null if there is no such property.
+ * @return A promise containing the boolean property requested. This will return null if there is no such property or Feature Flag.
  */
 BrazePlugin.prototype.getFeatureFlagBooleanProperty = function (
   flagId,
@@ -734,7 +914,7 @@ BrazePlugin.prototype.getFeatureFlagBooleanProperty = function (
  * @param {string} flagId - The identifier for the Feature Flag.
  * @param {string} propertyKey - The key for the string property.
  *
- * @return A promise containing the string property requested. This should return null if there is no such property.
+ * @return A promise containing the string property requested. This will return null if there is no such property or Feature Flag.
  */
 BrazePlugin.prototype.getFeatureFlagStringProperty = function (
   flagId,
@@ -760,7 +940,7 @@ BrazePlugin.prototype.getFeatureFlagStringProperty = function (
  * @param {string} flagId - The identifier for the Feature Flag.
  * @param {string} propertyKey - The key for the number property.
  *
- * @return A promise containing the number property requested. This should return null if there is no such property.
+ * @return A promise containing the number property requested. This will return null if there is no such property or Feature Flag.
  */
 BrazePlugin.prototype.getFeatureFlagNumberProperty = function (
   flagId,
@@ -824,8 +1004,44 @@ BrazePlugin.prototype["CardCategories"] = {
 
 BrazePlugin.prototype["ContentCardTypes"] = {
   CLASSIC: "Classic",
-  BANNER: "Banner",
+  IMAGE_ONLY: "ImageOnly",
   CAPTIONED: "Captioned",
+};
+
+BrazePlugin.prototype["TrackingProperty"] = {
+  ALL_CUSTOM_ATTRIBUTES: "all_custom_attributes",
+  ALL_CUSTOM_EVENTS: "all_custom_events",
+  ANALYTICS_EVENTS: "analytics_events",
+  ATTRIBUTION_DATA: "attribution_data",
+  COUNTRY: "country",
+  DATE_OF_BIRTH: "dob",
+  DEVICE_DATA: "device_data",
+  EMAIL: "email",
+  EMAIL_SUBSCRIPTION_STATE: "email_subscription_state",
+  EVERYTHING: "everything",
+  FIRST_NAME: "first_name",
+  GENDER: "gender",
+  HOME_CITY: "home_city",
+  LANGUAGE: "language",
+  LAST_NAME: "last_name",
+  NOTIFICATION_SUBSCRIPTION_STATE: "notification_subscription_state",
+  PHONE_NUMBER: "phone_number",
+  PUSH_TOKEN: "push_token",
+};
+
+BrazePlugin.prototype["TrackingPropertyAllowList"] = {
+  /* Tracking properties you wish to add to your allowlist */
+  adding: [],
+  /* Tracking properties you wish to remove from your allowlist */
+  removing: [],
+  /* Custom event strings you wish to add to your current allowlist. */
+  addingCustomEvents: [],
+  /* Custom event strings you wish to remove from your current allowlist. */
+  removingCustomEvents: [],
+  /* Custom attribute strings you wish to add to your current allowlist. */
+  addingCustomAttributes: [],
+  /* Custom attribute strings you wish to remove from your current allowlist. */
+  removingCustomAttributes: [],
 };
 
 /**
@@ -860,6 +1076,20 @@ BrazePlugin.prototype.subscribeToSdkAuthenticationFailures = function (
     "subscribeToSdkAuthenticationFailures"
   );
 };
+
+// Helper Functions
+
+/**
+ * Validates an array to be processed in the `TrackingPropertyAllowList`.
+ *
+ * @param {array} array
+ * @returns Whether the array is valid according to the tracking property allow list.
+ */
+function isValidTrackingPropertyArray(array) {
+  return (
+    Array.isArray(array) && array.every((item) => typeof item === "string")
+  );
+}
 
 var AppboyPlugin = BrazePlugin;
 
