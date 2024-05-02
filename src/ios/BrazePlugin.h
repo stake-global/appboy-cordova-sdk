@@ -7,7 +7,6 @@
 @property Braze *braze;
 @property id<BrazeIDFADelegate> idfaDelegate;
 @property NSMutableArray<BRZCancellable *> *subscriptions;
-
 @property int inAppDisplayAttempts;
 
 /// Static Braze instance provided as a convenience method for compatibility.
@@ -19,6 +18,8 @@
 - (void)changeUser:(CDVInvokedUrlCommand *)command;
 - (void)setSdkAuthenticationSignature:(CDVInvokedUrlCommand *)command;
 - (void)subscribeToSdkAuthenticationFailures:(CDVInvokedUrlCommand *)command;
+- (void)subscribeToInAppMessage:(CDVInvokedUrlCommand *)command;
+- (void)hideCurrentInAppMessage:(CDVInvokedUrlCommand *)command;
 - (void)logCustomEvent:(CDVInvokedUrlCommand *)command;
 - (void)logPurchase:(CDVInvokedUrlCommand *)command;
 - (void)disableSdk:(CDVInvokedUrlCommand *)command;
@@ -26,6 +27,8 @@
 - (void)wipeData:(CDVInvokedUrlCommand *)command;
 - (void)requestImmediateDataFlush:(CDVInvokedUrlCommand *)command;
 - (void)getDeviceId:(CDVInvokedUrlCommand *)command;
+- (void)updateTrackingPropertyAllowList:(CDVInvokedUrlCommand *)command;
+- (void)setAdTrackingEnabled:(CDVInvokedUrlCommand *)command;
 
 /*-------Custom Stake integrations-------*/
 - (void) getNextInApp:(CDVInvokedUrlCommand *)command;
@@ -41,6 +44,7 @@
 - (void)setHomeCity:(CDVInvokedUrlCommand *)command;
 - (void)setPhoneNumber:(CDVInvokedUrlCommand *)command;
 - (void)setLanguage:(CDVInvokedUrlCommand *)command;
+- (void)setLastKnownLocation:(CDVInvokedUrlCommand *)command;
 
 - (void)setPushNotificationSubscriptionType:(CDVInvokedUrlCommand *)command;
 - (void)setEmailNotificationSubscriptionType:(CDVInvokedUrlCommand *)command;
