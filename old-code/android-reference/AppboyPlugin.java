@@ -102,9 +102,9 @@ public class AppboyPlugin extends CordovaPlugin {
     mPluginInitializationFinished = true;
   }
 
-  
 
-  
+
+
 
   @Override
   public boolean execute(final String action, JSONArray args, final CallbackContext callbackContext) throws JSONException {
@@ -439,6 +439,8 @@ public class AppboyPlugin extends CordovaPlugin {
     if (cordovaPreferences.contains(ENABLE_GEOFENCES_PREFERENCE)) {
       configBuilder.setGeofencesEnabled(cordovaPreferences.getBoolean(ENABLE_GEOFENCES_PREFERENCE, false));
     }
+
+    // TODO: JOEL: trigger interval no longer req for new version as being accommodated to config.xml in app codebase
     configBuilder.setTriggerActionMinimumTimeIntervalSeconds(1);
     if (cordovaPreferences.contains(CUSTOM_API_ENDPOINT_PREFERENCE)) {
       final String customApiEndpoint = cordovaPreferences.getString(CUSTOM_API_ENDPOINT_PREFERENCE, "");
