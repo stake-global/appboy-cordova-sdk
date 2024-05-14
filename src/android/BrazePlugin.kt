@@ -36,6 +36,7 @@ import com.braze.ui.activities.ContentCardsActivity
 import com.braze.ui.inappmessage.BrazeInAppMessageManager
 import com.braze.ui.inappmessage.InAppMessageOperation
 import com.braze.ui.inappmessage.listeners.DefaultInAppMessageManagerListener
+import com.braze.ui.inappmessage.listeners.IInAppMessageManagerListener
 import org.apache.cordova.CallbackContext
 import org.apache.cordova.CordovaPlugin
 import org.apache.cordova.CordovaPreferences
@@ -47,6 +48,7 @@ import java.math.BigDecimal
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
+
 @Suppress("TooManyFunctions", "MaxLineLength", "WildcardImport")
 open class BrazePlugin : CordovaPlugin() {
     private lateinit var applicationContext: Context
@@ -54,6 +56,8 @@ open class BrazePlugin : CordovaPlugin() {
     private var disableAutoStartSessions = false
     private val feedSubscriberMap: MutableMap<String, IEventSubscriber<FeedUpdatedEvent>> = ConcurrentHashMap()
     private var inAppMessageDisplayOperation: InAppMessageOperation = InAppMessageOperation.DISPLAY_NOW
+
+     var iInAppMessageManagerListener: CustomInAppMessageManagerListener? = null
 
     override fun pluginInitialize() {
         applicationContext = cordova.activity.applicationContext
@@ -516,7 +520,7 @@ open class BrazePlugin : CordovaPlugin() {
             "getNextInApp" -> {
                 runOnBraze {
                     brazelog { "Received getNextInApp"}
-                    iInAppMessageManagerListener.inAppDisplayAttempts += 1;
+                    iInAppMessageManagerListener.inAppDisplayAttempts += 1
                 }
                 return true
             }
@@ -791,6 +795,9 @@ open class BrazePlugin : CordovaPlugin() {
 
         // Set whether CordovaInAppMessageViewWrapperFactory should be used to display an In App Message to the user.
         val enableRequestFocusFix = cordovaPreferences.getBoolean(ENABLE_CORDOVA_WEBVIEW_REQUEST_FOCUS_FIX_PREFERENCE, true)
+        iInAppMessageManagerListener = new CustomInAppMessageManagerListener(this.cordova.getActivity());
+        BrazeInAppMessageManager.getInstance().setCustomInAppMessageManagerListener(iInAppMessageManagerListener);
+
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P && enableRequestFocusFix) {
             // Addresses Cordova bug in https://issuetracker.google.com/issues/36915710
             BrazeInAppMessageManager.getInstance().setCustomInAppMessageViewWrapperFactory(CordovaInAppMessageViewWrapperFactory())
