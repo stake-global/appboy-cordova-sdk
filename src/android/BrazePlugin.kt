@@ -57,7 +57,7 @@ open class BrazePlugin : CordovaPlugin() {
     private val feedSubscriberMap: MutableMap<String, IEventSubscriber<FeedUpdatedEvent>> = ConcurrentHashMap()
     private var inAppMessageDisplayOperation: InAppMessageOperation = InAppMessageOperation.DISPLAY_NOW
 
-     var iInAppMessageManagerListener: CustomInAppMessageManagerListener? = null
+    lateinit var  iInAppMessageManagerListener: CustomInAppMessageManagerListener
 
     override fun pluginInitialize() {
         applicationContext = cordova.activity.applicationContext
@@ -795,7 +795,7 @@ open class BrazePlugin : CordovaPlugin() {
 
         // Set whether CordovaInAppMessageViewWrapperFactory should be used to display an In App Message to the user.
         val enableRequestFocusFix = cordovaPreferences.getBoolean(ENABLE_CORDOVA_WEBVIEW_REQUEST_FOCUS_FIX_PREFERENCE, true)
-        iInAppMessageManagerListener = new CustomInAppMessageManagerListener(this.cordova.getActivity());
+        iInAppMessageManagerListener = CustomInAppMessageManagerListener(cordova.getActivity());
         BrazeInAppMessageManager.getInstance().setCustomInAppMessageManagerListener(iInAppMessageManagerListener);
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P && enableRequestFocusFix) {
