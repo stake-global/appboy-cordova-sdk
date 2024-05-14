@@ -522,7 +522,7 @@ open class BrazePlugin : CordovaPlugin() {
                     brazelog { "Received getNextInApp"}
                     iInAppMessageManagerListener.inAppDisplayAttempts += 1
                 }
-                return true
+                return BrazeInAppMessageManager.getInstance().requestDisplayInAppMessage();
             }
             "subscribeToSdkAuthenticationFailures" -> {
                 runOnBraze {
@@ -795,7 +795,7 @@ open class BrazePlugin : CordovaPlugin() {
 
         // Set whether CordovaInAppMessageViewWrapperFactory should be used to display an In App Message to the user.
         val enableRequestFocusFix = cordovaPreferences.getBoolean(ENABLE_CORDOVA_WEBVIEW_REQUEST_FOCUS_FIX_PREFERENCE, true)
-        iInAppMessageManagerListener = CustomInAppMessageManagerListener(cordova.getActivity());
+        iInAppMessageManagerListener = CustomInAppMessageManagerListener(cordova.activity)
         BrazeInAppMessageManager.getInstance().setCustomInAppMessageManagerListener(iInAppMessageManagerListener);
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P && enableRequestFocusFix) {
