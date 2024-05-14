@@ -84,7 +84,7 @@ bool isInAppMessageSubscribed;
 
   // TODO: JOEL: your old custom cold to be accommodated with their braze re-write
   // appboyLaunchOptions[ABKInAppMessageControllerDelegateKey] = self;
-  // self.inAppDisplayAttempts = 0;
+  self.inAppDisplayAttempts = 0;
 
   // Set the minimum logging level
   NSNumber *level = [[[NSNumberFormatter alloc] init] numberFromString:self.logLevel];

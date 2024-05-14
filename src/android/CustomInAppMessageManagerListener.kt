@@ -1,30 +1,29 @@
 // // TODO: Joel: this needs to be converted over to .kt and integrated
 
-// package com.appboy.cordova;
+package com.braze.cordova
 
-// import android.app.Activity;
-// import com.braze.ui.inappmessage.InAppMessageOperation;
-// import com.braze.ui.inappmessage.listeners.IInAppMessageManagerListener;
-// import android.util.Log;
-// import com.braze.models.inappmessage.IInAppMessage;
+import android.app.Activity;
+import com.braze.ui.inappmessage.InAppMessageOperation;
+import com.braze.ui.inappmessage.listeners.IInAppMessageManagerListener;
+import android.util.Log;
+import com.braze.models.inappmessage.IInAppMessage;
 
-// public class CustomInAppMessageManagerListener implements IInAppMessageManagerListener {
-//   private final Activity mActivity;
-//   public int inAppDisplayAttempts = 0;
+class CustomInAppMessageManagerListener : IInAppMessageManagerListener {
+  private var Activity mActivity;
+  public var inAppDisplayAttempts = 0;
 //   private static final String TAG = "BrazeCordova";
 
-//   public CustomInAppMessageManagerListener(Activity activity) {
-//     mActivity = activity;
-//   }
+  override fun CustomInAppMessageManagerListener(activity: Activity) {
+    mActivity = activity;
+  }
 
-//   @Override
-//   public InAppMessageOperation beforeInAppMessageDisplayed(IInAppMessage inAppMessage) {
-//     if (this.inAppDisplayAttempts >= 1) {
-//       Log.i(TAG, "Set in-app to display now");
-//       return InAppMessageOperation.DISPLAY_NOW;
-//     } else {
-//       Log.i(TAG, "Set in-app to display now");
-//       return InAppMessageOperation.DISPLAY_LATER;
-//     }
-//   }
-// }
+  override fun beforeInAppMessageDisplayed(inAppMessageBase: IInAppMessage): InAppMessageOperation {
+    if (this.inAppDisplayAttempts >= 1) {
+      brazelog(I) { "Set in-app to display now"}
+      return InAppMessageOperation.DISPLAY_NOW;
+    } else {
+      brazelog(I) { "Set in-app to display later"}
+      return InAppMessageOperation.DISPLAY_LATER;
+    }
+  }
+}

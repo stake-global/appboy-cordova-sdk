@@ -513,6 +513,13 @@ open class BrazePlugin : CordovaPlugin() {
                 }
                 return true
             }
+            "getNextInApp" -> {
+                runOnBraze {
+                    brazelog { "Received getNextInApp"}
+                    iInAppMessageManagerListener.inAppDisplayAttempts += 1;
+                }
+                return true
+            }
             "subscribeToSdkAuthenticationFailures" -> {
                 runOnBraze {
                     it.subscribeToSdkAuthenticationFailures { sdkAuthErrorEvent ->
