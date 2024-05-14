@@ -1293,7 +1293,7 @@ bool isInAppMessageSubscribed;
 //   NSLog(myNewString);
 //   [self sendCordovaSuccessPluginResultWithInt:inAppRemaining andCommand:command];
 //   return inAppRemaining;
-}
+// }
 
 - (BRZInAppMessageUIDisplayChoice)beforeInAppMessageDisplayed:(BrazeInAppMessageUI *)inAppMessage {
 //  inAppMessage.animateIn = false;
