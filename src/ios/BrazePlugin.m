@@ -1274,7 +1274,8 @@ bool isInAppMessageSubscribed;
 - (void)getNextInApp:(CDVInvokedUrlCommand *)command {
   NSLog(@"Display next in-app");
   self.inAppDisplayAttempts +=1;
-  [self.braze.inAppMessageController displayNextInAppMessage];
+  [self.braze.inAppMessagePresenter displayNextInAppMessage];
+  // [self.braze.inAppMessageController displayNextInAppMessage]; // xcode advised inAppMessageController deprecated and to use inAppMessagePresenter
   // [[Appboy sharedInstance].inAppMessageController displayNextInAppMessage]; // old code
 
   NSString* successString = @"OK";
@@ -1284,8 +1285,10 @@ bool isInAppMessageSubscribed;
 
 - (NSInteger)inAppMessagesRemainingOnStack:(CDVInvokedUrlCommand *)command {
   NSLog(@"Getting messages");
+  int inAppRemaining =  [self.braze.inAppMessagePresenter inAppMessagesRemainingOnStack];
+  // int inAppRemaining =  [self.braze.inAppMessageController inAppMessagesRemainingOnStack]; // xcode advised inAppMessageController deprecated and to use inAppMessagePresenter
   // int inAppRemaining =  [[Appboy sharedInstance].inAppMessageController inAppMessagesRemainingOnStack]; // old code
-  int inAppRemaining =  [self.braze.inAppMessageController inAppMessagesRemainingOnStack];
+
   NSString* myNewString = [NSString stringWithFormat:@"%i remaining", inAppRemaining];
   NSLog(myNewString);
   [self sendCordovaSuccessPluginResultWithInt:inAppRemaining andCommand:command];
