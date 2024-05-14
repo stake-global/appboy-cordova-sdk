@@ -1274,7 +1274,7 @@ bool isInAppMessageSubscribed;
 - (void)getNextInApp:(CDVInvokedUrlCommand *)command {
   NSLog(@"Display next in-app");
   self.inAppDisplayAttempts +=1;
-  [self.braze.inAppMessagePresenter displayNextInAppMessage];
+  [(BrazeInAppMessageUI *)self.braze.inAppMessagePresenter presentNext];
   // [self.braze.inAppMessageController displayNextInAppMessage]; // xcode advised inAppMessageController deprecated and to use inAppMessagePresenter
   // [[Appboy sharedInstance].inAppMessageController displayNextInAppMessage]; // old code
 
@@ -1283,27 +1283,27 @@ bool isInAppMessageSubscribed;
   [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
 
-- (NSInteger)inAppMessagesRemainingOnStack:(CDVInvokedUrlCommand *)command {
-  NSLog(@"Getting messages");
-  int inAppRemaining =  [self.braze.inAppMessagePresenter inAppMessagesRemainingOnStack];
-  // int inAppRemaining =  [self.braze.inAppMessageController inAppMessagesRemainingOnStack]; // xcode advised inAppMessageController deprecated and to use inAppMessagePresenter
-  // int inAppRemaining =  [[Appboy sharedInstance].inAppMessageController inAppMessagesRemainingOnStack]; // old code
+// - (NSInteger)inAppMessagesRemainingOnStack:(CDVInvokedUrlCommand *)command {
+//   NSLog(@"Getting messages");
+//   int inAppRemaining =  [self.braze.inAppMessagePresenter inAppMessagesRemainingOnStack];
+//   // int inAppRemaining =  [self.braze.inAppMessageController inAppMessagesRemainingOnStack]; // xcode advised inAppMessageController deprecated and to use inAppMessagePresenter
+//   // int inAppRemaining =  [[Appboy sharedInstance].inAppMessageController inAppMessagesRemainingOnStack]; // old code
 
-  NSString* myNewString = [NSString stringWithFormat:@"%i remaining", inAppRemaining];
-  NSLog(myNewString);
-  [self sendCordovaSuccessPluginResultWithInt:inAppRemaining andCommand:command];
-  return inAppRemaining;
+//   NSString* myNewString = [NSString stringWithFormat:@"%i remaining", inAppRemaining];
+//   NSLog(myNewString);
+//   [self sendCordovaSuccessPluginResultWithInt:inAppRemaining andCommand:command];
+//   return inAppRemaining;
 }
 
-- (ABKInAppMessageDisplayChoice)beforeInAppMessageDisplayed:(ABKInAppMessage *)inAppMessage {
-  inAppMessage.animateIn = false;
-  inAppMessage.animateOut = false;
+- (BRZInAppMessageUIDisplayChoice)beforeInAppMessageDisplayed:(BrazeInAppMessageUI *)inAppMessage {
+//  inAppMessage.animateIn = false;
+//  inAppMessage.animateOut = false;
   if (self.inAppDisplayAttempts >= 1) {
     NSLog(@"Set in-app to display now");
-    return ABKDisplayInAppMessageNow;
+    return BRZInAppMessageUIDisplayChoiceNow;
   } else {
     NSLog(@"Set in-app to display later");
-    return ABKDisplayInAppMessageLater;
+    return BRZInAppMessageUIDisplayChoiceReenqueue;
   }
 }
 
