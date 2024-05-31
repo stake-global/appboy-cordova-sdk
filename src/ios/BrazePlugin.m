@@ -1283,26 +1283,21 @@ bool isInAppMessageSubscribed;
   [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
 }
 
-// - (NSInteger)inAppMessagesRemainingOnStack:(CDVInvokedUrlCommand *)command {
-//   NSLog(@"Getting messages");
-//   int inAppRemaining =  [self.braze.inAppMessagePresenter inAppMessagesRemainingOnStack];
-//   // int inAppRemaining =  [self.braze.inAppMessageController inAppMessagesRemainingOnStack]; // xcode advised inAppMessageController deprecated and to use inAppMessagePresenter
-//   // int inAppRemaining =  [[Appboy sharedInstance].inAppMessageController inAppMessagesRemainingOnStack]; // old code
+- (void)inAppMessage:(BrazeInAppMessageUI *)ui
+     willPresent:(BRZInAppMessageRaw *)message
+        view:(UIView *)view {
+  message.animateIn = false;
+  message.animateOut = false;
+  self.inAppDisplayAttempts +=1;
+}
 
-//   NSString* myNewString = [NSString stringWithFormat:@"%i remaining", inAppRemaining];
-//   NSLog(myNewString);
-//   [self sendCordovaSuccessPluginResultWithInt:inAppRemaining andCommand:command];
-//   return inAppRemaining;
-// }
-
-- (BRZInAppMessageUIDisplayChoice)beforeInAppMessageDisplayed:(BrazeInAppMessageUI *)inAppMessage {
-//  inAppMessage.animateIn = false;
-//  inAppMessage.animateOut = false;
+- (enum BRZInAppMessageUIDisplayChoice)inAppMessage:(BrazeInAppMessageUI *)ui
+                     displayChoiceForMessage:(BRZInAppMessageRaw * _Nonnull)message{
   if (self.inAppDisplayAttempts >= 1) {
-    NSLog(@"Set in-app to display now");
+    NSLog(@"Set in-app to display after 1");
     return BRZInAppMessageUIDisplayChoiceNow;
   } else {
-    NSLog(@"Set in-app to display later");
+    NSLog(@"Set in-app to display before 1");
     return BRZInAppMessageUIDisplayChoiceReenqueue;
   }
 }
