@@ -839,6 +839,10 @@ bool isInAppMessageSubscribed;
   formattedContentCardData[@"dismissible"] = @(card.dismissible);
   formattedContentCardData[@"url"] = [card.url absoluteString] ?: [NSNull null];
   formattedContentCardData[@"openURLInWebView"] = @(card.useWebView);
+  formattedContentCardData[@"isTest"] = @(card.test);
+
+  BOOL isControl = card.type == BRZContentCardRawTypeControl;
+  formattedContentCardData[@"isControl"] = @(isControl);
 
   if (card.extras != nil) {
     formattedContentCardData[@"extras"] = [BrazePlugin getJsonFromExtras:card.extras];
@@ -1286,8 +1290,8 @@ bool isInAppMessageSubscribed;
 - (void)inAppMessage:(BrazeInAppMessageUI *)ui
      willPresent:(BRZInAppMessageRaw *)message
         view:(UIView *)view {
-  message.animateIn = false;
-  message.animateOut = false;
+  // message.animateIn = false;
+  // message.animateOut = false;
   self.inAppDisplayAttempts +=1;
 }
 
