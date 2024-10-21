@@ -399,7 +399,7 @@ bool useBrazeUIForInAppMessages;
   NSString *key = [command argumentAtIndex:0 withDefault:nil];
   NSNumber *latitude = [command argumentAtIndex:1 withDefault:nil];
   NSNumber *longitude = [command argumentAtIndex:2 withDefault:nil];
-  
+
   if (!latitude || !longitude) {
     NSLog(@"Invalid location information with the latitude: %@, longitude: %@",
           latitude ? latitude : @"nil",
@@ -1359,7 +1359,8 @@ bool useBrazeUIForInAppMessages;
     [self.commandDelegate evalJs:jsStatement];
   }
 
-  if (useBrazeUIForInAppMessages) {
+  // if (useBrazeUIForInAppMessages) { -> original v10 braze code
+  if (self.inAppDisplayAttempts >= 1) {
     return BRZInAppMessageUIDisplayChoiceNow;
   } else {
     return BRZInAppMessageUIDisplayChoiceDiscard;
@@ -1420,15 +1421,15 @@ bool useBrazeUIForInAppMessages;
   self.inAppDisplayAttempts +=1;
 }
 
-- (enum BRZInAppMessageUIDisplayChoice)inAppMessage:(BrazeInAppMessageUI *)ui
-                     displayChoiceForMessage:(BRZInAppMessageRaw * _Nonnull)message{
-  if (self.inAppDisplayAttempts >= 1) {
-    NSLog(@"Set in-app to display after 1");
-    return BRZInAppMessageUIDisplayChoiceNow;
-  } else {
-    NSLog(@"Set in-app to display before 1");
-    return BRZInAppMessageUIDisplayChoiceReenqueue;
-  }
-}
+// - (enum BRZInAppMessageUIDisplayChoice)inAppMessage:(BrazeInAppMessageUI *)ui
+//                      displayChoiceForMessage:(BRZInAppMessageRaw * _Nonnull)message{
+//   if (self.inAppDisplayAttempts >= 1) {
+//     NSLog(@"Set in-app to display after 1");
+//     return BRZInAppMessageUIDisplayChoiceNow;
+//   } else {
+//     NSLog(@"Set in-app to display before 1");
+//     return BRZInAppMessageUIDisplayChoiceReenqueue;
+//   }
+// }
 
 @end
