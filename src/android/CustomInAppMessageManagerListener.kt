@@ -16,7 +16,7 @@ class CustomInAppMessageManagerListener(activity: Activity) : IInAppMessageManag
       InAppMessageOperation.DISPLAY_NOW
     } else {
       brazelog { "Set in-app to display later"}
-      InAppMessageOperation.DISPLAY_LATER
+      InAppMessageOperation.DISCARD
     }
   }
 }
