@@ -86,6 +86,9 @@
 - (void)getFeatureFlagBooleanProperty:(CDVInvokedUrlCommand *)command;
 - (void)getFeatureFlagStringProperty:(CDVInvokedUrlCommand *)command;
 - (void)getFeatureFlagNumberProperty:(CDVInvokedUrlCommand *)command;
+- (void)getFeatureFlagTimestampProperty:(CDVInvokedUrlCommand *)command;
+- (void)getFeatureFlagJSONProperty:(CDVInvokedUrlCommand *)command;
+- (void)getFeatureFlagImageProperty:(CDVInvokedUrlCommand *)command;
 - (void)logFeatureFlagImpression:(CDVInvokedUrlCommand *)command;
 
 @end
