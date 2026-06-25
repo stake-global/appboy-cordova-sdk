@@ -1,4 +1,92 @@
-⚠️ In version 2.33.0, we changed the iOS bridge from AppboyKit, which is written in Objective-C, to the new [Swift SDK](https://github.com/braze-inc/braze-swift-sdk). If you are upgrading from a version below 2.33.0 to a version above 2.33.0, please read [the instructions](https://github.com/braze-inc/braze-cordova-sdk/blob/master/CHANGELOG.md#2330) to ensure a smooth transition and backward compatibility.
+# Stake fork
+
+This is Stake's fork of the Braze Cordova SDK, re-based cleanly onto upstream **16.0.1**. The only
+differences from upstream are a small set of clearly-marked Stake customizations that let the app
+control *when* Braze in-app messages are displayed:
+
+- **`promptForPush()`** (iOS) — prompts for push permission and informs Braze of the result. On
+  Android the app calls the standard `requestPushPermission()`.
+- **`getNextInApp(success, error)`** — presents the next in-app message held on the stack.
+- **`inAppMessagesRemainingOnStack(success, error)`** — best-effort count of held in-app messages.
+
+Braze's automatic in-app display is suppressed by default (held / re-enqueued); messages are
+presented on demand via `getNextInApp()`. Implemented with a single in-app message listener
+(`BrazePlugin.kt`) / `BrazeInAppMessageUIDelegate` (`BrazePlugin.m`) — no competing listeners.
+
+---
+
+## 16.0.1
+
+##### Fixed
+- Fixed iOS initialization when using cordova-ios 8 with the Swift `AppDelegate` template, where plugins can load after `UIApplicationDidFinishLaunchingNotification` and Braze would never start.
+
+## 16.0.0
+
+##### Breaking
+- Updated the native Android bridge [from Braze Android SDK 41.1.1 to 42.2.0](https://github.com/braze-inc/braze-android-sdk/compare/v41.1.1...v42.2.0#diff-06572a96a58dc510037d5efa622f9bec8519bc1beab13c9f251e97e657a9d4ed).
+
+## 15.0.0
+
+##### Breaking
+- Updated the native Android bridge [from Braze Android SDK 39.0.0 to 41.1.1](https://github.com/braze-inc/braze-android-sdk/compare/v39.0.0...v41.1.1#diff-06572a96a58dc510037d5efa622f9bec8519bc1beab13c9f251e97e657a9d4ed).
+- Updated the native iOS bridge [from Braze Swift SDK 13.2.0 to 14.0.1](https://github.com/braze-inc/braze-swift-sdk/compare/13.2.0...14.0.1#diff-06572a96a58dc510037d5efa622f9bec8519bc1beab13c9f251e97e657a9d4ed).
+
+##### Fixed
+- Fixed `subscribeToInAppMessage` on both iOS and Android to properly invoke the success callback with in-app message data and correctly respect the `useBrazeUI` parameter. [#103](https://github.com/braze-inc/braze-cordova-sdk/issues/103)
+
+## 14.0.0
+
+##### Breaking
+- Updated the native Android bridge [from Braze Android SDK 37.0.0 to 39.0.0](https://github.com/braze-inc/braze-android-sdk/compare/v37.0.0...v39.0.0#diff-06572a96a58dc510037d5efa622f9bec8519bc1beab13c9f251e97e657a9d4ed).
+  - The minimum required `GradlePluginKotlinVersion` is now `2.1.0`.
+- Updated the native iOS bridge [from Braze Swift SDK 12.0.0 to 13.2.0](https://github.com/braze-inc/braze-swift-sdk/compare/12.0.0...13.2.0#diff-06572a96a58dc510037d5efa622f9bec8519bc1beab13c9f251e97e657a9d4ed).
+  - This includes Xcode 26 support.
+- Removes support for News Feed. The following APIs have been removed:
+  - `launchNewsFeed`
+  - `getNewsFeed`
+  - `getNewsFeedUnreadCount`
+  - `getNewsFeedCardCount`
+  - `getCardCountForCategories`
+  - `getUnreadCardCountForCategories`
+
+## 13.0.0
+
+##### Breaking
+- Updated the internal iOS implementation of `enableSdk` method to use `setEnabled:` instead of `_requestEnableSDKOnNextAppRun`, which was deprecated in the Swift SDK.
+  - Calling this method no longer requires the app to be re-launched to take effect. The SDK will now become enabled as soon as this method is executed.
+- Updated the native Android bridge [from Braze Android SDK 36.0.0 to 37.0.0](https://github.com/braze-inc/braze-android-sdk/compare/v36.0.0...v37.0.0#diff-06572a96a58dc510037d5efa622f9bec8519bc1beab13c9f251e97e657a9d4ed).
+
+## 12.0.0
+
+> [!IMPORTANT]
+> This release reverts the increase to the minimum Android SDK version of the Braze Android SDK from API 21 to API 25 introduced in 34.0.0. This allows the SDK to once again be compiled into apps supporting as early as API 21. However, we are not reintroducing formal support for < API 25. Read more [here](https://github.com/braze-inc/braze-android-sdk/blob/master/CHANGELOG.md#3600).
+
+##### Breaking
+- Updated the native Android bridge [from Braze Android SDK 35.0.0 to 36.0.0](https://github.com/braze-inc/braze-android-sdk/compare/v35.0.0...v36.0.0#diff-06572a96a58dc510037d5efa622f9bec8519bc1beab13c9f251e97e657a9d4ed).
+- Updated the native iOS bridge [from Braze Swift SDK 11.6.1 to 12.0.0](https://github.com/braze-inc/braze-swift-sdk/compare/11.6.1...12.0.0#diff-06572a96a58dc510037d5efa622f9bec8519bc1beab13c9f251e97e657a9d4ed).
+
+##### Fixed
+- Updated the internal iOS implementation of `getUserId` to `braze.user.identifier` instead of `[braze.user idWithCompletion:]`, which was deprecated in Swift SDK [11.5.0](https://github.com/braze-inc/braze-swift-sdk/releases/tag/11.5.0). This deprecation does not have any impact to functionality.
+
+##### Added
+- Added support for the `setSdkAuthenticationSignature` method on Android.
+
+## 11.0.0
+
+##### Breaking
+- Updated the native Android bridge [from Braze Android SDK 32.1.0 to 35.0.0](https://github.com/braze-inc/braze-android-sdk/compare/v32.1.0...v35.0.0#diff-06572a96a58dc510037d5efa622f9bec8519bc1beab13c9f251e97e657a9d4ed).
+  - The minimum required Android SDK version is 25. See more details [here](https://github.com/braze-inc/braze-android-sdk?tab=readme-ov-file#version-information).
+- Updated the native iOS bridge [from Braze Swift SDK 10.1.0 to 11.6.1](https://github.com/braze-inc/braze-swift-sdk/compare/10.1.0...11.6.1#diff-06572a96a58dc510037d5efa622f9bec8519bc1beab13c9f251e97e657a9d4ed).
+
+##### Fixed
+- Updated automatic push integration on iOS to be fully compatible with Swift-based projects (e.g. Capacitor applications).
+  - Previously, the automatic push integration would not properly register the push token in Swift-based projects.
+
+##### Added
+- Added the ability to provide different API keys for Android and iOS in the `config.xml` file.
+  - To set the Android API key, add `<preference name="com.braze.android_api_key" value="your-android-api-key" />`.
+  - To set the iOS API key, add `<preference name="com.braze.ios_api_key" value="your-ios-api-key" />`.
+  - The preference `<preference name="com.braze.api_key" value="your-api-key" />` is still supported for backwards compatibility and is used if no platform-specific API key is provided.
 
 ## 10.0.0
 

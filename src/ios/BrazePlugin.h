@@ -7,12 +7,17 @@
 @property Braze *braze;
 @property id<BrazeIDFADelegate> idfaDelegate;
 @property NSMutableArray<BRZCancellable *> *subscriptions;
-@property int inAppDisplayAttempts;
 
 /// Static Braze instance provided as a convenience method for compatibility.
 ///
 /// Accessing this property before initializing the Braze plugin will return a `nil` value.
 + (Braze *)braze;
+
+/*-------Stake custom-------*/
+// Controls when in-app messages are displayed: messages are held and presented on demand.
+- (void)promptForPush:(CDVInvokedUrlCommand *)command;
+- (void)getNextInApp:(CDVInvokedUrlCommand *)command;
+- (void)inAppMessagesRemainingOnStack:(CDVInvokedUrlCommand *)command;
 
 /*-------Braze-------*/
 - (void)changeUser:(CDVInvokedUrlCommand *)command;
@@ -29,10 +34,6 @@
 - (void)getDeviceId:(CDVInvokedUrlCommand *)command;
 - (void)updateTrackingPropertyAllowList:(CDVInvokedUrlCommand *)command;
 - (void)setAdTrackingEnabled:(CDVInvokedUrlCommand *)command;
-
-/*-------Custom Stake integrations-------*/
-- (void) getNextInApp:(CDVInvokedUrlCommand *)command;
-- (void) promptForPush:(CDVInvokedUrlCommand *)command;
 
 /*-------Braze.User-------*/
 - (void)setFirstName:(CDVInvokedUrlCommand *)command;
@@ -62,13 +63,7 @@
 - (void)addAlias:(CDVInvokedUrlCommand *)command;
 
 /*-------BrazeUI-------*/
-- (void)launchNewsFeed:(CDVInvokedUrlCommand *)command;
 - (void)launchContentCards:(CDVInvokedUrlCommand *)command;
-
-/*-------News Feed-------*/
-- (void)getCardCountForCategories:(CDVInvokedUrlCommand *)command;
-- (void)getUnreadCardCountForCategories:(CDVInvokedUrlCommand *)command;
-- (void)getNewsFeed:(CDVInvokedUrlCommand *)command;
 
 /*-------Content Cards-------*/
 - (void)requestContentCardsRefresh:(CDVInvokedUrlCommand *)command;

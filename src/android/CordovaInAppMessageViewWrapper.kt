@@ -60,7 +60,6 @@ class CordovaInAppMessageViewWrapper : DefaultInAppMessageViewWrapper {
         inAppMessageViewLifecycleListener: IInAppMessageViewLifecycleListener
     ) {
         brazelog(V) { "Running custom Cordova finalizeViewBeforeDisplay" }
-        announceForAccessibilityIfNecessary()
         inAppMessageViewLifecycleListener.afterOpened(inAppMessageView, inAppMessage)
     }
 

@@ -15,7 +15,6 @@ import com.braze.enums.*
 import com.braze.enums.inappmessage.ClickAction
 import com.braze.events.ContentCardsUpdatedEvent
 import com.braze.events.FeatureFlagsUpdatedEvent
-import com.braze.events.FeedUpdatedEvent
 import com.braze.events.IEventSubscriber
 import com.braze.models.outgoing.AttributionData
 import com.braze.models.outgoing.BrazeProperties
@@ -30,13 +29,10 @@ import com.braze.support.BrazeLogger.logLevel
 import com.braze.support.requestPushPermissionPrompt
 import com.braze.support.toBundle
 import com.braze.ui.BrazeDeeplinkHandler
-import com.braze.ui.actions.NewsfeedAction
-import com.braze.ui.activities.BrazeFeedActivity
 import com.braze.ui.activities.ContentCardsActivity
 import com.braze.ui.inappmessage.BrazeInAppMessageManager
 import com.braze.ui.inappmessage.InAppMessageOperation
 import com.braze.ui.inappmessage.listeners.DefaultInAppMessageManagerListener
-import com.braze.ui.inappmessage.listeners.IInAppMessageManagerListener
 import org.apache.cordova.CallbackContext
 import org.apache.cordova.CordovaPlugin
 import org.apache.cordova.CordovaPreferences
@@ -48,16 +44,19 @@ import java.math.BigDecimal
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
-
 @Suppress("TooManyFunctions", "MaxLineLength", "WildcardImport")
 open class BrazePlugin : CordovaPlugin() {
     private lateinit var applicationContext: Context
     private var pluginInitializationFinished = false
     private var disableAutoStartSessions = false
-    private val feedSubscriberMap: MutableMap<String, IEventSubscriber<FeedUpdatedEvent>> = ConcurrentHashMap()
-    private var inAppMessageDisplayOperation: InAppMessageOperation = InAppMessageOperation.DISPLAY_NOW
-
-    lateinit var  iInAppMessageManagerListener: CustomInAppMessageManagerListener
+    // Stake custom: hold in-app messages by default and present them on demand via getNextInApp().
+    // The app controls display timing; Braze's automatic display is suppressed (DISPLAY_LATER).
+    private var inAppMessageDisplayOperation: InAppMessageOperation = InAppMessageOperation.DISPLAY_LATER
+    private var subscribeToInAppMessageCallbackContext: CallbackContext? = null
+    // Stake custom: one-shot flag set by getNextInApp() so the next held message is shown once.
+    private var displayNextInAppRequested = false
+    // Stake custom: best-effort count of in-app messages currently held (see inAppMessagesRemainingOnStack).
+    private val heldInAppMessageKeys = mutableSetOf<String>()
 
     override fun pluginInitialize() {
         applicationContext = cordova.activity.applicationContext
@@ -68,6 +67,9 @@ open class BrazePlugin : CordovaPlugin() {
         // Since we've likely passed the first Application.onCreate() (due to the plugin lifecycle), lets call the
         // in-app message manager and session handling now
         BrazeInAppMessageManager.getInstance().registerInAppMessageManager(cordova.activity)
+        // Stake custom: install the single in-app message listener up front so messages are held
+        // (gated) even when the app never calls subscribeToInAppMessage.
+        setDefaultInAppMessageListener()
         pluginInitializationFinished = true
     }
 
@@ -100,13 +102,17 @@ open class BrazePlugin : CordovaPlugin() {
                 return true
             }
             "getUserId" -> {
-                runOnUser { 
-                    if (it.userId.isNullOrBlank()) {
+                runOnUser {
+                    if (it.userId.isBlank()) {
                         callbackContext.sendCordovaSuccessPluginResultAsNull()
                     } else {
                         callbackContext.success(it.userId)
                     }
                 }
+                return true
+            }
+            "setSdkAuthenticationSignature" -> {
+                runOnBraze { it.setSdkAuthenticationSignature(args.getString(0)) }
                 return true
             }
             "logCustomEvent" -> {
@@ -160,7 +166,7 @@ open class BrazePlugin : CordovaPlugin() {
                 return true
             }
             "requestContentCardsRefresh" -> {
-                runOnBraze { it.requestContentCardsRefresh(false) }
+                runOnBraze { it.requestContentCardsRefresh() }
                 return true
             }
             "getDeviceId" -> {
@@ -351,26 +357,37 @@ open class BrazePlugin : CordovaPlugin() {
                 runOnUser { it.removeFromSubscriptionGroup(args.getString(0)) }
                 return true
             }
-            "launchNewsFeed" -> {
-                val intent = Intent(applicationContext, BrazeFeedActivity::class.java)
-                cordova.activity.startActivity(intent)
-                return true
-            }
             "launchContentCards" -> {
                 val intent = Intent(applicationContext, ContentCardsActivity::class.java)
                 cordova.activity.startActivity(intent)
                 return true
             }
             "subscribeToInAppMessage" -> {
-                runOnBraze {
-                    val useBrazeUI = args.getBoolean(0)
-                    inAppMessageDisplayOperation = if (useBrazeUI) {
-                        InAppMessageOperation.DISPLAY_NOW
-                    } else {
-                        InAppMessageOperation.DISCARD
-                    }
-                    setDefaultInAppMessageListener()
+                val useBrazeUI = args.getBoolean(0)
+                inAppMessageDisplayOperation = if (useBrazeUI) {
+                    InAppMessageOperation.DISPLAY_NOW
+                } else {
+                    // Stake custom: hold (not discard) so getNextInApp() can present the message later.
+                    InAppMessageOperation.DISPLAY_LATER
                 }
+                subscribeToInAppMessageCallbackContext = callbackContext
+                // Stake custom: the listener is already installed in pluginInitialize(); no need to re-set it here.
+                val pluginResult = PluginResult(PluginResult.Status.NO_RESULT)
+                pluginResult.keepCallback = true
+                callbackContext.sendPluginResult(pluginResult)
+                return true
+            }
+            "getNextInApp" -> {
+                // Stake custom: present the next held in-app message.
+                displayNextInAppRequested = true
+                BrazeInAppMessageManager.getInstance().requestDisplayInAppMessage()
+                callbackContext.success()
+                return true
+            }
+            "inAppMessagesRemainingOnStack" -> {
+                // Stake custom: best-effort count of in-app messages currently held (see heldInAppMessageKeys).
+                callbackContext.success(heldInAppMessageKeys.size)
+                return true
             }
             "hideCurrentInAppMessage" -> {
                 BrazeInAppMessageManager.getInstance().hideCurrentlyDisplayingInAppMessage(true)
@@ -435,15 +452,6 @@ open class BrazePlugin : CordovaPlugin() {
                         }
                         brazelog { "got action: $clickUri, $openUriInWebView, $clickAction" }
                         when (clickAction) {
-                            ClickAction.NEWS_FEED -> {
-                                val newsfeedAction = NewsfeedAction(
-                                    inAppMessage.extras.toBundle(),
-                                    Channel.INAPP_MESSAGE
-                                )
-                                BrazeDeeplinkHandler.getInstance()
-                                    .gotoNewsFeed(activity, newsfeedAction)
-                            }
-
                             ClickAction.URI -> {
                                 if (clickUri != null) {
                                     val uriAction =
@@ -582,13 +590,6 @@ open class BrazePlugin : CordovaPlugin() {
                 }
                 return true
             }
-            "getNextInApp" -> {
-                runOnBraze {
-                    brazelog { "Received getNextInApp"}
-                    iInAppMessageManagerListener.inAppDisplayAttempts += 1
-                }
-                return BrazeInAppMessageManager.getInstance().requestDisplayInAppMessage();
-            }
             "subscribeToSdkAuthenticationFailures" -> {
                 runOnBraze {
                     it.subscribeToSdkAuthenticationFailures { sdkAuthErrorEvent ->
@@ -606,9 +607,6 @@ open class BrazePlugin : CordovaPlugin() {
                 }
                 return true
             }
-            GET_NEWS_FEED_METHOD,
-            GET_CARD_COUNT_FOR_CATEGORIES_METHOD,
-            GET_UNREAD_CARD_COUNT_FOR_CATEGORIES_METHOD -> return handleNewsFeedGetters(action, args, callbackContext)
             GET_CONTENT_CARDS_FROM_SERVER_METHOD,
             GET_CONTENT_CARDS_FROM_CACHE_METHOD -> return handleContentCardsUpdateGetters(action, callbackContext)
             LOG_CONTENT_CARDS_CLICKED_METHOD,
@@ -697,8 +695,13 @@ open class BrazePlugin : CordovaPlugin() {
             .setSdkMetadata(EnumSet.of(BrazeSdkMetadata.CORDOVA))
 
         // Set the API key.
-        if (cordovaPreferences.contains(BRAZE_API_KEY_PREFERENCE)) {
-            val apiKey = cordovaPreferences.getString(BRAZE_API_KEY_PREFERENCE, "")
+        if (cordovaPreferences.contains(BRAZE_API_KEY_PREFERENCE) || cordovaPreferences.contains(
+                BRAZE_API_KEY_DEPRECATED_PREFERENCE)) {
+            var apiKey = cordovaPreferences.getString(BRAZE_API_KEY_PREFERENCE, "")
+            if (apiKey.isBlank()) {
+                // Fallback to the deprecated API key setting.
+                apiKey = cordovaPreferences.getString(BRAZE_API_KEY_DEPRECATED_PREFERENCE, "")
+            }
             if (apiKey.isNotBlank()) {
                 configBuilder.setApiKey(apiKey)
             } else {
@@ -840,7 +843,7 @@ open class BrazePlugin : CordovaPlugin() {
 
         // Set whether Braze should automatically collect location (if the user permits).
         if (cordovaPreferences.contains(ENABLE_LOCATION_PREFERENCE)) {
-            configBuilder.setIsLocationCollectionEnabled(cordovaPreferences.getBoolean(ENABLE_LOCATION_PREFERENCE, false))
+            configBuilder.setIsAutomaticLocationCollectionEnabled(cordovaPreferences.getBoolean(ENABLE_LOCATION_PREFERENCE, false))
         }
 
         // Set whether the Braze Geofences feature should be enabled.
@@ -860,9 +863,6 @@ open class BrazePlugin : CordovaPlugin() {
 
         // Set whether CordovaInAppMessageViewWrapperFactory should be used to display an In App Message to the user.
         val enableRequestFocusFix = cordovaPreferences.getBoolean(ENABLE_CORDOVA_WEBVIEW_REQUEST_FOCUS_FIX_PREFERENCE, true)
-        iInAppMessageManagerListener = CustomInAppMessageManagerListener(cordova.activity)
-        BrazeInAppMessageManager.getInstance().setCustomInAppMessageManagerListener(iInAppMessageManagerListener);
-
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P && enableRequestFocusFix) {
             // Addresses Cordova bug in https://issuetracker.google.com/issues/36915710
             BrazeInAppMessageManager.getInstance().setCustomInAppMessageViewWrapperFactory(CordovaInAppMessageViewWrapperFactory())
@@ -887,75 +887,6 @@ open class BrazePlugin : CordovaPlugin() {
         Braze.configure(applicationContext, configBuilder.build())
     }
 
-    private fun handleNewsFeedGetters(action: String, args: JSONArray, callbackContext: CallbackContext): Boolean {
-        var feedUpdatedSubscriber: IEventSubscriber<FeedUpdatedEvent>? = null
-        var requestingFeedUpdateFromCache = false
-        val braze = Braze.getInstance(applicationContext)
-        val callbackId = callbackContext.callbackId
-        when (action) {
-            GET_CARD_COUNT_FOR_CATEGORIES_METHOD -> {
-                val categories = getCategoriesFromJSONArray(args)
-                feedUpdatedSubscriber = IEventSubscriber { event: FeedUpdatedEvent ->
-                    // Each callback context is by default made to only be called once and is afterwards "finished". We want to ensure
-                    // that we never try to call the same callback twice. This could happen since we don't know the ordering of the feed
-                    // subscription callbacks from the cache.
-                    if (!callbackContext.isFinished) {
-                        callbackContext.success(event.getCardCount(categories))
-                    }
-
-                    // Remove this listener from the map
-                    braze.removeSingleSubscription(feedSubscriberMap[callbackId], FeedUpdatedEvent::class.java)
-                    feedSubscriberMap.remove(callbackId)
-                }
-                requestingFeedUpdateFromCache = true
-            }
-            GET_UNREAD_CARD_COUNT_FOR_CATEGORIES_METHOD -> {
-                val categories = getCategoriesFromJSONArray(args)
-                feedUpdatedSubscriber = IEventSubscriber { event: FeedUpdatedEvent ->
-                    if (!callbackContext.isFinished) {
-                        callbackContext.success(event.getUnreadCardCount(categories))
-                    }
-
-                    // Remove this listener from the map
-                    braze.removeSingleSubscription(feedSubscriberMap[callbackId], FeedUpdatedEvent::class.java)
-                    feedSubscriberMap.remove(callbackId)
-                }
-                requestingFeedUpdateFromCache = true
-            }
-            GET_NEWS_FEED_METHOD -> {
-                val categories = getCategoriesFromJSONArray(args)
-                feedUpdatedSubscriber = IEventSubscriber { event: FeedUpdatedEvent ->
-                    if (!callbackContext.isFinished) {
-                        val cards = event.getFeedCards(categories)
-                        val result = JSONArray()
-                        var i = 0
-                        while (i < cards.size) {
-                            result.put(cards[i].forJsonPut())
-                            i++
-                        }
-                        callbackContext.success(result)
-                    }
-
-                    // Remove this listener from the map
-                    braze.removeSingleSubscription(feedSubscriberMap[callbackId], FeedUpdatedEvent::class.java)
-                    feedSubscriberMap.remove(callbackId)
-                }
-                requestingFeedUpdateFromCache = false
-            }
-        }
-        if (feedUpdatedSubscriber != null) {
-            // Put the subscriber into a map so we can remove it later from future subscriptions
-            feedSubscriberMap[callbackId] = feedUpdatedSubscriber
-            braze.subscribeToFeedUpdates(feedUpdatedSubscriber)
-            if (requestingFeedUpdateFromCache) {
-                braze.requestFeedRefreshFromCache()
-            } else {
-                braze.requestFeedRefresh()
-            }
-        }
-        return true
-    }
-
     private fun handleContentCardsUpdateGetters(action: String, callbackContext: CallbackContext): Boolean {
         // Setup a one-time subscriber for the update event
         val subscriber: IEventSubscriber<ContentCardsUpdatedEvent> = object : IEventSubscriber<ContentCardsUpdatedEvent> {
@@ -968,9 +899,7 @@ open class BrazePlugin : CordovaPlugin() {
         }
 
         Braze.getInstance(applicationContext).subscribeToContentCardsUpdates(subscriber)
-        Braze.getInstance(applicationContext).requestContentCardsRefresh(
-            fromCache = action == GET_CONTENT_CARDS_FROM_CACHE_METHOD
-        )
+        Braze.getInstance(applicationContext).requestContentCardsRefreshFromCache()
         return true
     }
 
@@ -1020,17 +949,33 @@ open class BrazePlugin : CordovaPlugin() {
                 override fun beforeInAppMessageDisplayed(inAppMessage: IInAppMessage): InAppMessageOperation {
                     super.beforeInAppMessageDisplayed(inAppMessage)
 
-                    // Convert in-app message to string
                     val inAppMessageString = escapeStringForJavaScript(inAppMessage.forJsonPut().toString())
                     brazelog { "In-app message received: $inAppMessageString" }
 
-                    // Send in-app message string back to JavaScript in an `inAppMessageReceived` event
+                    subscribeToInAppMessageCallbackContext?.let { context ->
+                        val pluginResult = PluginResult(PluginResult.Status.OK, inAppMessageString)
+                        pluginResult.keepCallback = true
+                        context.sendPluginResult(pluginResult)
+                    }
+
                     val jsStatement = "app.inAppMessageReceived('$inAppMessageString');"
                     cordova.activity.runOnUiThread {
                         webView.engine.evaluateJavascript(jsStatement, null)
                     }
 
-                    return inAppMessageDisplayOperation
+                    // Stake custom: present the message only when getNextInApp() has requested it;
+                    // otherwise apply the configured operation (DISPLAY_LATER by default = hold on the stack).
+                    val messageKey = inAppMessage.forJsonPut().toString()
+                    return if (displayNextInAppRequested) {
+                        displayNextInAppRequested = false
+                        heldInAppMessageKeys.remove(messageKey)
+                        InAppMessageOperation.DISPLAY_NOW
+                    } else {
+                        if (inAppMessageDisplayOperation == InAppMessageOperation.DISPLAY_LATER) {
+                            heldInAppMessageKeys.add(messageKey)
+                        }
+                        inAppMessageDisplayOperation
+                    }
                 }
             }
         )
@@ -1038,7 +983,8 @@ open class BrazePlugin : CordovaPlugin() {
 
     companion object {
         // Preference keys found in the config.xml
-        private const val BRAZE_API_KEY_PREFERENCE = "com.braze.api_key"
+        private const val BRAZE_API_KEY_PREFERENCE = "com.braze.android_api_key"
+        private const val BRAZE_API_KEY_DEPRECATED_PREFERENCE = "com.braze.api_key"
         private const val AUTOMATIC_FIREBASE_PUSH_REGISTRATION_ENABLED_PREFERENCE = "com.braze.firebase_cloud_messaging_registration_enabled"
         private const val FCM_SENDER_ID_PREFERENCE = "com.braze.android_fcm_sender_id"
         private const val BRAZE_LOG_LEVEL_PREFERENCE = "com.braze.android_log_level"
@@ -1074,36 +1020,12 @@ open class BrazePlugin : CordovaPlugin() {
         // Numeric preference prefix
         private const val NUMERIC_PREFERENCE_PREFIX = "str_"
 
-        // News Feed method names
-        private const val GET_NEWS_FEED_METHOD = "getNewsFeed"
-        private const val GET_CARD_COUNT_FOR_CATEGORIES_METHOD = "getCardCountForCategories"
-        private const val GET_UNREAD_CARD_COUNT_FOR_CATEGORIES_METHOD = "getUnreadCardCountForCategories"
-
         // Content Card method names
         private const val GET_CONTENT_CARDS_FROM_SERVER_METHOD = "getContentCardsFromServer"
         private const val GET_CONTENT_CARDS_FROM_CACHE_METHOD = "getContentCardsFromCache"
         private const val LOG_CONTENT_CARDS_CLICKED_METHOD = "logContentCardClicked"
         private const val LOG_CONTENT_CARDS_IMPRESSION_METHOD = "logContentCardImpression"
         private const val LOG_CONTENT_CARDS_DISMISSED_METHOD = "logContentCardDismissed"
-
-        private fun getCategoriesFromJSONArray(jsonArray: JSONArray): EnumSet<CardCategory> {
-            val categories = EnumSet.noneOf(CardCategory::class.java)
-            for (i in 0 until jsonArray.length()) {
-                val category = jsonArray.getString(i)
-                val categoryArgument: CardCategory? = if (category == "all") {
-                    // "All categories" maps to a enumset and not a specific enum so we have to return that here
-                    return CardCategory.getAllCategories()
-                } else {
-                    CardCategory.get(category)
-                }
-                if (categoryArgument != null) {
-                    categories.add(categoryArgument)
-                } else {
-                    brazelog(W) { "Tried to add unknown card category: $category" }
-                }
-            }
-            return categories
-        }
 
         /**
          * Map a Kotlin string to a JavaScript-representable version.
