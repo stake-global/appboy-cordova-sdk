@@ -61,7 +61,7 @@ int inAppMessagesHeldCount;
 
 - (void)pluginInitialize {
   NSDictionary *settings = self.commandDelegate.settings;
-  
+
   // Api
   self.APIKey = settings[@"com.braze.ios_api_key"];
   if (self.APIKey == nil) {
@@ -72,21 +72,21 @@ int inAppMessagesHeldCount;
   self.useAutomaticRequestPolicy = settings[@"com.braze.ios_use_automatic_request_policy"];
   self.flushInterval = settings[@"com.braze.ios_flush_interval_seconds"];
   self.enableSDKAuth = settings[@"com.braze.sdk_authentication_enabled"];
-  
+
   // Push
   self.pushAppGroup = settings[@"com.braze.ios_push_app_group"];
   self.disableAutomaticPushHandling = settings[@"com.braze.ios_disable_automatic_push_handling"];
   self.disableAutomaticPushRegistration = settings[@"com.braze.ios_disable_automatic_push_registration"];
   self.disableUNAuthorizationOptionProvisional = settings[@"com.braze.ios_disable_un_authorization_option_provisional"];
   self.displayForegroundPushNotifications = settings[@"com.braze.display_foreground_push_notifications"];
-  
+
   // Location
   self.enableLocationCollection = settings[@"com.braze.enable_location_collection"];
   self.enableGeofences = settings[@"com.braze.geofences_enabled"];
-  
+
   // Logger
   self.logLevel = settings[@"com.braze.ios_log_level"];
-  
+
   // General
   self.sessionTimeout = settings[@"com.braze.ios_session_timeout"];
   self.triggerActionMinimumTimeInterval = settings[@"com.braze.trigger_action_minimum_time_interval_seconds"];
@@ -124,10 +124,10 @@ int inAppMessagesHeldCount;
 
   BRZConfiguration *configuration = [[BRZConfiguration alloc] initWithApiKey:self.APIKey
                                                                     endpoint:self.apiEndpoint];
-  
+
   // Set SDK Flavor
   [configuration.api setSdkFlavor:BRZSDKFlavorCordova];
-  
+
   // Set the minimum logging level
   NSNumber *level = [[[NSNumberFormatter alloc] init] numberFromString:self.logLevel];
   NSInteger levelCast = [level integerValue];
@@ -137,9 +137,9 @@ int inAppMessagesHeldCount;
   } else {
     NSLog(@"Log level value not valid. Setting value to: error (2).");
   }
-  
+
   // ---- Push Notifications configuration
-  
+
   // Set push automation from preferences
   if (![[self sanitizeString:self.disableAutomaticPushHandling] isEqualToString:@"yes"]) {
     // Enables all push automation
@@ -162,7 +162,7 @@ int inAppMessagesHeldCount;
   } else {
     NSLog(@"Foreground push notifications disabled.");
   }
-  
+
   // Set automatic request notification authorization
   if (![[self sanitizeString:self.disableAutomaticPushRegistration] isEqualToString:@"yes"]) {
     // Enable automatic push registration and device token registration
@@ -191,7 +191,7 @@ int inAppMessagesHeldCount;
   } else {
     NSLog(@"Location collection disabled.");
   }
-  
+
   // Set geofences from preferences
   if ([[self sanitizeString:self.enableGeofences] isEqualToString:@"yes"]) {
     configuration.location.geofencesEnabled = @YES;
@@ -199,7 +199,7 @@ int inAppMessagesHeldCount;
   } else {
     NSLog(@"Geofences disabled.");
   }
-  
+
   // Set the minimum time interval between triggers (in seconds)
   NSNumber *interval = [[[NSNumberFormatter alloc] init] numberFromString:self.triggerActionMinimumTimeInterval];
   NSTimeInterval intervalCast = [interval doubleValue];
@@ -209,7 +209,7 @@ int inAppMessagesHeldCount;
   } else {
     NSLog(@"Minimum time interval between trigger actions value not valid. Setting value to 30.");
   }
-  
+
   // Sets if a randomly generated UUID should be used as the device ID
   if ([[self sanitizeString:self.useUUIDAsDeviceId] isEqualToString:@"yes"]) {
     configuration.useUUIDAsDeviceId = @YES;
@@ -225,7 +225,7 @@ int inAppMessagesHeldCount;
   } else {
     NSLog(@"iOS universal link forwarding disabled.");
   }
-  
+
   // Set if a user’s notification subscription state should be set to optedIn when push permissions are authorized
   if ([[self sanitizeString:self.optInWhenPushAuthorized] isEqualToString:@"no"]) {
     configuration.optInWhenPushAuthorized = @NO;
@@ -243,11 +243,11 @@ int inAppMessagesHeldCount;
   } else {
     NSLog(@"Session timeout interval value not valid. Setting value to 10.");
   }
-  
+
   // Set SDK Metadata
   [configuration.api addSDKMetadata:@[[BRZSDKMetadata cordova]]];
   NSLog(@"SDK Metadata set.");
-  
+
   // Set if request policy should be automatic or manual
   if ([[self sanitizeString: self.useAutomaticRequestPolicy] isEqualToString:@"no"]) {
     [configuration.api setRequestPolicy:BRZRequestPolicyManual];
@@ -255,7 +255,7 @@ int inAppMessagesHeldCount;
   } else {
     NSLog(@"Request policy set to: Automatic.");
   }
-  
+
   // Set the interval in seconds between automatic data flushes
   NSNumber *flushInterval = [[[NSNumberFormatter alloc] init] numberFromString:self.flushInterval];
   NSTimeInterval flushIntervalCast = [flushInterval doubleValue];
@@ -269,7 +269,7 @@ int inAppMessagesHeldCount;
   // Set the app group identifier for push stories.
   [configuration.push setAppGroup:self.pushAppGroup];
   NSLog(@"Push app group set to: %@.", self.pushAppGroup);
-  
+
   // Initialize Braze with set configurations
   self.braze = [[Braze alloc] initWithConfiguration:configuration];
   self.subscriptions = [NSMutableArray array];
@@ -461,7 +461,7 @@ int inAppMessagesHeldCount;
   NSString *key = [command argumentAtIndex:0 withDefault:nil];
   NSNumber *latitude = [command argumentAtIndex:1 withDefault:nil];
   NSNumber *longitude = [command argumentAtIndex:2 withDefault:nil];
-  
+
   if (!latitude || !longitude) {
     NSLog(@"Invalid location information with the latitude: %@, longitude: %@",
           latitude ? latitude : @"nil",
@@ -701,19 +701,19 @@ int inAppMessagesHeldCount;
 
 - (void)setAdTrackingEnabled:(CDVInvokedUrlCommand *)command {
   id argument = [command argumentAtIndex:0 withDefault:nil];
-  
+
   if (argument == nil) {
     NSLog(@"Error: No argument provided for setAdTrackingEnabled.");
     return;
   }
-  
+
   if (![argument isKindOfClass:[NSNumber class]]) {
     NSLog(@"Error: Expected argument to be a boolean value for setAdTrackingEnabled.");
     return;
   }
-  
+
   BOOL adTrackingEnabled = [argument boolValue];
-  
+
   if (adTrackingEnabled) {
     [self.braze setAdTrackingEnabled:YES];
     NSLog(@"Ad tracking enabled.");
@@ -726,7 +726,7 @@ int inAppMessagesHeldCount;
 // MARK: - BrazeUI
 - (void)launchContentCards:(CDVInvokedUrlCommand *)command {
   [self.braze.contentCards requestRefresh];
-  
+
   BRZContentCardUIModalViewController *contentCardsModal = [[BRZContentCardUIModalViewController alloc] initWithBraze:self.braze];
   UIWindow *keyWindow = [[UIApplication sharedApplication] keyWindow];
   UIViewController *mainViewController = keyWindow.rootViewController;
@@ -799,7 +799,7 @@ int inAppMessagesHeldCount;
 
 + (NSDictionary *)formattedContentCard:(BRZContentCardRaw *)card {
   NSMutableDictionary *formattedContentCardData = [NSMutableDictionary dictionary];
-  
+
   formattedContentCardData[@"id"] = card.identifier;
   formattedContentCardData[@"created"] = @(card.createdAt);
   formattedContentCardData[@"expiresAt"] = @(card.expiresAt);
@@ -818,7 +818,7 @@ int inAppMessagesHeldCount;
   if (card.extras != nil) {
     formattedContentCardData[@"extras"] = [BrazePlugin getJsonFromExtras:card.extras];
   }
-  
+
   switch (card.type) {
     case BRZContentCardRawTypeClassic:
       formattedContentCardData[@"image"] = [card.image absoluteString] ?: [NSNull null];
@@ -884,7 +884,6 @@ int inAppMessagesHeldCount;
   [center requestAuthorizationWithOptions:options
                         completionHandler:^(BOOL granted, NSError *_Nullable error) {
                           NSLog(@"Push authorization completed. Granted: %d", granted);
-                          [self.braze.notifications pushAuthorizationFromUserNotificationCenter:granted];
                         }];
   [[UIApplication sharedApplication] registerForRemoteNotifications];
 
@@ -958,14 +957,14 @@ int inAppMessagesHeldCount;
   NSNumber *button = [command argumentAtIndex:1 withDefault:0];
   NSLog(@"performInAppMessageAction called with value %@, and button %@", inAppMessageString, button);
   BRZInAppMessageRaw *inAppMessage = [self getInAppMessageFromString:inAppMessageString];
-  
+
   double buttonId = [button doubleValue];
-  
+
   if (inAppMessage) {
     NSURL* url = nil;
     BOOL useWebView = NO;
     BRZInAppMessageRawClickAction clickAction = BRZInAppMessageRawClickActionURL;
-      
+
     if (buttonId < 0) {
       url = inAppMessage.url;
       useWebView = inAppMessage.useWebView;
@@ -979,7 +978,7 @@ int inAppMessagesHeldCount;
         }
       }
     }
-      
+
     NSLog(@"performInAppMessageAction trying %@", inAppMessage.url);
     inAppMessage.context = [[BRZInAppMessageContext alloc] initWithMessageRaw:inAppMessage using:self.braze];
     [inAppMessage.context processClickAction:clickAction url:url useWebView:useWebView];
@@ -1162,7 +1161,7 @@ int inAppMessagesHeldCount;
       NSLog(@"Failed to serialize Feature Flag with error: %@", error);
     }
   }
-  
+
   return mappedFlags;
 }
 
