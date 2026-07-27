@@ -385,6 +385,12 @@ open class BrazePlugin : CordovaPlugin() {
                 }
                 // Stake custom: retain-and-present is the useBrazeUI = false contract.
                 retainInAppMessagesForJs = !useBrazeUI
+                // Stake custom: release a previous subscription's callback before replacing it.
+                // Overwriting it alone would leave the old CallbackContext pinned in Cordova's
+                // callback map for the life of the page, never completed and never called again.
+                subscribeToInAppMessageCallbackContext?.takeIf { it != callbackContext }?.sendPluginResult(
+                    PluginResult(PluginResult.Status.NO_RESULT).apply { keepCallback = false }
+                )
                 subscribeToInAppMessageCallbackContext = callbackContext
                 // Stake custom: the listener is already installed in pluginInitialize(); no need to re-set it here.
                 val pluginResult = PluginResult(PluginResult.Status.NO_RESULT)

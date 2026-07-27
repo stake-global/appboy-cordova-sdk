@@ -890,6 +890,17 @@ static const NSInteger kNotRetainedInAppMessageId = -1;
   BOOL useBrazeUI = [[command argumentAtIndex:0 withDefault:@YES] boolValue];
   useBrazeUIForInAppMessages = useBrazeUI;
   isInAppMessageSubscribed = YES;
+
+  // Stake custom: release a previous subscription's callback before replacing it. Overwriting it
+  // alone would leave the old callback id pinned in Cordova's callback map for the life of the
+  // page, never completed and never called again.
+  NSString *previousCallbackID = self.subscribeToInAppMessageCallbackID;
+  if (previousCallbackID != nil && ![previousCallbackID isEqualToString:command.callbackId]) {
+    CDVPluginResult *release = [CDVPluginResult resultWithStatus:CDVCommandStatus_NO_RESULT];
+    [release setKeepCallbackAsBool:NO];
+    [self.commandDelegate sendPluginResult:release callbackId:previousCallbackID];
+  }
+
   self.subscribeToInAppMessageCallbackID = command.callbackId;
 }
 

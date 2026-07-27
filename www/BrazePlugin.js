@@ -541,6 +541,11 @@ BrazePlugin.prototype.logContentCardDismissed = function (cardId) {
  * subscription, nothing is retained, `id` is `-1`, and the message stays on Braze's stack for
  * getNextInApp().
  *
+ * Call this ONCE per page lifetime. There is a single subscriber slot: re-subscribing replaces the
+ * previous callback (the old one is released natively, so it is never invoked again). Re-subscribing
+ * does not release messages already retained for the previous callback — those stay pending until
+ * showInAppMessage(id) / releaseInAppMessage(id) or changeUser.
+ *
  * @param {boolean} useBrazeUI - Whether to use Braze's UI for in-app messages
  */
 BrazePlugin.prototype.subscribeToInAppMessage = function (successCallback, errorCallback, useBrazeUI = true) {
