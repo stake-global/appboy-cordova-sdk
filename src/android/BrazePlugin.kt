@@ -57,6 +57,17 @@ open class BrazePlugin : CordovaPlugin() {
     private var displayNextInAppRequested = false
     // Stake custom: best-effort count of in-app messages currently held (see inAppMessagesRemainingOnStack).
     private val heldInAppMessageKeys = mutableSetOf<String>()
+    // Stake custom: retain-and-present, enabled by subscribeToInAppMessage(useBrazeUI = false).
+    // Messages are retained by id, handed to JS and discarded from Braze's stack; JS decides via
+    // showInAppMessage(id) / releaseInAppMessage(id). Without a subscription this stays false and
+    // the hold-and-getNextInApp behaviour above runs unchanged.
+    private var retainInAppMessagesForJs = false
+    private val pendingInAppMessages = LinkedHashMap<Int, IInAppMessage>()
+    private var nextInAppMessageId = 0
+    // Stake custom: the message JS handed back with showInAppMessage(id). Matched in the listener by
+    // object identity, never by position, so it cannot present the wrong pending message.
+    @Volatile
+    private var authorisedInAppMessage: IInAppMessage? = null
 
     override fun pluginInitialize() {
         applicationContext = cordova.activity.applicationContext
@@ -98,6 +109,8 @@ open class BrazePlugin : CordovaPlugin() {
                 val userId = args.getString(0)
                 // Pass along the SDK Auth token if provided
                 val sdkAuthToken = args.optString(1)
+                // Stake custom: retained messages belong to the outgoing user.
+                clearPendingInAppMessages()
                 runOnBraze { it.changeUser(userId, sdkAuthToken) }
                 return true
             }
@@ -370,6 +383,8 @@ open class BrazePlugin : CordovaPlugin() {
                     // Stake custom: hold (not discard) so getNextInApp() can present the message later.
                     InAppMessageOperation.DISPLAY_LATER
                 }
+                // Stake custom: retain-and-present is the useBrazeUI = false contract.
+                retainInAppMessagesForJs = !useBrazeUI
                 subscribeToInAppMessageCallbackContext = callbackContext
                 // Stake custom: the listener is already installed in pluginInitialize(); no need to re-set it here.
                 val pluginResult = PluginResult(PluginResult.Status.NO_RESULT)
@@ -384,9 +399,31 @@ open class BrazePlugin : CordovaPlugin() {
                 callbackContext.success()
                 return true
             }
+            "showInAppMessage" -> {
+                // Stake custom: hand a retained message back to Braze so Braze renders it itself.
+                val messageId = args.getInt(0)
+                val inAppMessage = takePendingInAppMessage(messageId)
+                if (inAppMessage == null) {
+                    callbackContext.error("No retained in-app message for id $messageId")
+                } else {
+                    authorisedInAppMessage = inAppMessage
+                    // addInAppMessage() pushes onto Braze's stack and requests display itself.
+                    BrazeInAppMessageManager.getInstance().addInAppMessage(inAppMessage)
+                    callbackContext.success()
+                }
+                return true
+            }
+            "releaseInAppMessage" -> {
+                // Stake custom: JS is done with the message (rendered it, or dropped it) — stop retaining it.
+                takePendingInAppMessage(args.getInt(0))
+                callbackContext.success()
+                return true
+            }
             "inAppMessagesRemainingOnStack" -> {
-                // Stake custom: best-effort count of in-app messages currently held (see heldInAppMessageKeys).
-                callbackContext.success(heldInAppMessageKeys.size)
+                // Stake custom: best-effort count of in-app messages held on Braze's stack
+                // (see heldInAppMessageKeys) plus the messages retained for JS.
+                val pendingCount = synchronized(pendingInAppMessages) { pendingInAppMessages.size }
+                callbackContext.success(heldInAppMessageKeys.size + pendingCount)
                 return true
             }
             "hideCurrentInAppMessage" -> {
@@ -946,39 +983,90 @@ open class BrazePlugin : CordovaPlugin() {
     private fun setDefaultInAppMessageListener() {
         BrazeInAppMessageManager.getInstance().setCustomInAppMessageManagerListener(
             object : DefaultInAppMessageManagerListener() {
+                @Suppress("ReturnCount")
                 override fun beforeInAppMessageDisplayed(inAppMessage: IInAppMessage): InAppMessageOperation {
                     super.beforeInAppMessageDisplayed(inAppMessage)
 
-                    val inAppMessageString = escapeStringForJavaScript(inAppMessage.forJsonPut().toString())
-                    brazelog { "In-app message received: $inAppMessageString" }
+                    // Stake custom: JS handed this exact message back with showInAppMessage(id).
+                    // Matched by object identity — Braze re-delivers the very object we re-added —
+                    // so it can never present a different pending message.
+                    if (authorisedInAppMessage === inAppMessage) {
+                        authorisedInAppMessage = null
+                        return InAppMessageOperation.DISPLAY_NOW
+                    }
 
-                    subscribeToInAppMessageCallbackContext?.let { context ->
-                        val pluginResult = PluginResult(PluginResult.Status.OK, inAppMessageString)
+                    val inAppMessageJson = inAppMessage.forJsonPut().toString()
+                    brazelog { "In-app message received: $inAppMessageJson" }
+
+                    // Stake custom: retain-and-present. Gated on subscribeToInAppMessage(useBrazeUI = false):
+                    // we keep the object ourselves and hand JS an id it can give back.
+                    val callbackContext = subscribeToInAppMessageCallbackContext
+                    val retainForJs = retainInAppMessagesForJs && callbackContext != null
+                    val retainedId = if (retainForJs) retainInAppMessage(inAppMessage) else NOT_RETAINED_IN_APP_MESSAGE_ID
+
+                    callbackContext?.let { context ->
+                        // Stake custom: the callback carries the *unescaped* JSON. escapeStringForJavaScript
+                        // exists for the inline evalJs statement below only; on a plugin result it produces
+                        // {\"version\":…}, which JSON.parse rejects.
+                        val payload = JSONObject()
+                            .put("id", retainedId)
+                            .put("message", inAppMessageJson)
+                        val pluginResult = PluginResult(PluginResult.Status.OK, payload)
                         pluginResult.keepCallback = true
                         context.sendPluginResult(pluginResult)
                     }
 
-                    val jsStatement = "app.inAppMessageReceived('$inAppMessageString');"
+                    val jsStatement = "app.inAppMessageReceived('${escapeStringForJavaScript(inAppMessageJson)}');"
                     cordova.activity.runOnUiThread {
                         webView.engine.evaluateJavascript(jsStatement, null)
                     }
 
+                    // Stake custom: we own the retained message now — take it out of Braze's stack.
+                    if (retainForJs) {
+                        return InAppMessageOperation.DISCARD
+                    }
+
                     // Stake custom: present the message only when getNextInApp() has requested it;
                     // otherwise apply the configured operation (DISPLAY_LATER by default = hold on the stack).
-                    val messageKey = inAppMessage.forJsonPut().toString()
                     return if (displayNextInAppRequested) {
                         displayNextInAppRequested = false
-                        heldInAppMessageKeys.remove(messageKey)
+                        heldInAppMessageKeys.remove(inAppMessageJson)
                         InAppMessageOperation.DISPLAY_NOW
                     } else {
                         if (inAppMessageDisplayOperation == InAppMessageOperation.DISPLAY_LATER) {
-                            heldInAppMessageKeys.add(messageKey)
+                            heldInAppMessageKeys.add(inAppMessageJson)
                         }
                         inAppMessageDisplayOperation
                     }
                 }
             }
         )
+    }
+
+    /**
+     * Stake custom: retains [inAppMessage] and returns the id JS refers to it by.
+     *
+     * The oldest entries are evicted beyond [MAX_PENDING_IN_APP_MESSAGES] so a JS crash between
+     * delivery and showInAppMessage/releaseInAppMessage cannot leak messages.
+     */
+    private fun retainInAppMessage(inAppMessage: IInAppMessage): Int =
+        synchronized(pendingInAppMessages) {
+            val messageId = nextInAppMessageId++
+            pendingInAppMessages[messageId] = inAppMessage
+            while (pendingInAppMessages.size > MAX_PENDING_IN_APP_MESSAGES) {
+                pendingInAppMessages.remove(pendingInAppMessages.keys.first())
+            }
+            messageId
+        }
+
+    /** Stake custom: removes and returns the retained in-app message for [messageId], if any. */
+    private fun takePendingInAppMessage(messageId: Int): IInAppMessage? =
+        synchronized(pendingInAppMessages) { pendingInAppMessages.remove(messageId) }
+
+    /** Stake custom: drops every retained in-app message. */
+    private fun clearPendingInAppMessages() {
+        authorisedInAppMessage = null
+        synchronized(pendingInAppMessages) { pendingInAppMessages.clear() }
     }
 
     companion object {
@@ -1019,6 +1107,13 @@ open class BrazePlugin : CordovaPlugin() {
 
         // Numeric preference prefix
         private const val NUMERIC_PREFERENCE_PREFIX = "str_"
+
+        // Stake custom: retain-and-present
+        /** Most in-app messages retained for JS at once; the oldest are evicted beyond this. */
+        private const val MAX_PENDING_IN_APP_MESSAGES = 10
+
+        /** The `id` sent to JS for a message that was not retained and so cannot be handed back. */
+        private const val NOT_RETAINED_IN_APP_MESSAGE_ID = -1
 
         // Content Card method names
         private const val GET_CONTENT_CARDS_FROM_SERVER_METHOD = "getContentCardsFromServer"

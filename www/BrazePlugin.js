@@ -4,9 +4,16 @@ var BrazePlugin = function () {
 // ─────────────────────────────────────────────────────────────────────────────
 // Stake custom functions
 // Controls *when* Braze in-app messages are displayed. Braze's automatic display
-// is suppressed natively; messages are held and presented on demand via
-// getNextInApp(). See CustomInAppMessageManagerListener.kt (Android) and the
-// "Stake custom" section of BrazePlugin.m (iOS).
+// is suppressed natively, and there are two ways to drive display from JS:
+//
+//   1. No subscription — messages are held on Braze's stack and presented one at
+//      a time with getNextInApp().
+//   2. subscribeToInAppMessage(cb, err, false) — messages are retained natively,
+//      handed to `cb` as { id, message } and discarded from Braze's stack. JS then
+//      either hands one back with showInAppMessage(id) so Braze renders it, or
+//      renders it itself and calls releaseInAppMessage(id).
+//
+// See the "Stake custom" sections of BrazePlugin.kt (Android) and BrazePlugin.m (iOS).
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -25,10 +32,40 @@ BrazePlugin.prototype.getNextInApp = function (successCallback, errorCallback) {
 }
 
 /**
- * Returns the number of in-app messages currently held on the stack.
+ * Returns the number of in-app messages currently held on Braze's stack plus the number retained
+ * for JS by subscribeToInAppMessage(cb, err, false).
  */
 BrazePlugin.prototype.inAppMessagesRemainingOnStack = function (successCallback, errorCallback) {
     cordova.exec(successCallback, errorCallback, "BrazePlugin", "inAppMessagesRemainingOnStack");
+}
+
+/**
+ * Hands a retained in-app message back to Braze so Braze renders it with its own UI — the mobile
+ * equivalent of the Web SDK's `braze.showInAppMessage(message)`. Use this for any message the app
+ * does not render itself (surveys, templates, plain HTML campaigns).
+ *
+ * The message stops being retained: it does not need a matching releaseInAppMessage(id) call, and
+ * it no longer counts towards inAppMessagesRemainingOnStack().
+ *
+ * @param {number} id - The `id` from the subscribeToInAppMessage callback payload.
+ * @param {function} [successCallback] - Called once the message has been handed to Braze.
+ * @param {function} [errorCallback] - Called with a message when `id` is not retained (already
+ *                                     shown, released, or evicted).
+ */
+BrazePlugin.prototype.showInAppMessage = function (id, successCallback, errorCallback) {
+    cordova.exec(successCallback, errorCallback, "BrazePlugin", "showInAppMessage", [id]);
+}
+
+/**
+ * Stops retaining an in-app message. Call this once the app has finished with a message it took
+ * ownership of — whether it rendered it or dropped it — so the native side can let it go.
+ *
+ * @param {number} id - The `id` from the subscribeToInAppMessage callback payload.
+ * @param {function} [successCallback]
+ * @param {function} [errorCallback]
+ */
+BrazePlugin.prototype.releaseInAppMessage = function (id, successCallback, errorCallback) {
+    cordova.exec(successCallback, errorCallback, "BrazePlugin", "releaseInAppMessage", [id]);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -488,7 +525,22 @@ BrazePlugin.prototype.logContentCardDismissed = function (cardId) {
 }
 
 /**
- * Subscribes to Braze in-app messages
+ * Subscribes to Braze in-app messages.
+ *
+ * `successCallback` is invoked for every triggered message with an object:
+ *
+ *     { id: number, message: string }
+ *
+ * `message` is the **unescaped** Braze message JSON — pass it straight to `JSON.parse`, and pass it
+ * back verbatim to logInAppMessageImpression / logInAppMessageClicked / logInAppMessageButtonClicked
+ * / performInAppMessageAction.
+ *
+ * Stake custom: with `useBrazeUI = false` the message is retained natively and discarded from
+ * Braze's stack — the app owns it, and `id` is the handle for showInAppMessage(id) (hand it back to
+ * Braze) or releaseInAppMessage(id) (done with it). With `useBrazeUI = true`, or before any
+ * subscription, nothing is retained, `id` is `-1`, and the message stays on Braze's stack for
+ * getNextInApp().
+ *
  * @param {boolean} useBrazeUI - Whether to use Braze's UI for in-app messages
  */
 BrazePlugin.prototype.subscribeToInAppMessage = function (successCallback, errorCallback, useBrazeUI = true) {

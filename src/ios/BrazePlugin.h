@@ -18,6 +18,9 @@
 - (void)promptForPush:(CDVInvokedUrlCommand *)command;
 - (void)getNextInApp:(CDVInvokedUrlCommand *)command;
 - (void)inAppMessagesRemainingOnStack:(CDVInvokedUrlCommand *)command;
+// Retain-and-present: hand a message JS was given back to Braze, or stop retaining it.
+- (void)showInAppMessage:(CDVInvokedUrlCommand *)command;
+- (void)releaseInAppMessage:(CDVInvokedUrlCommand *)command;
 
 /*-------Braze-------*/
 - (void)changeUser:(CDVInvokedUrlCommand *)command;
