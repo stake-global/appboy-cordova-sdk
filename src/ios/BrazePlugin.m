@@ -54,9 +54,10 @@ bool useBrazeUIForInAppMessages;
 bool hasRequestedInAppDisplay;
 // Stake custom: best-effort count of in-app messages currently held (see inAppMessagesRemainingOnStack).
 int inAppMessagesHeldCount;
-// Stake custom: body marker identifying an in-app message this app renders itself. Supplied by JS on
-// subscribe, so the payload contract lives in one place rather than being hard-coded here. Nil claims
-// nothing, which leaves every message to Braze.
+// Stake custom: body marker identifying an in-app message this app renders itself. JS may override it
+// on subscribe, but it is never cleared: without a marker nothing would be claimed and Braze would
+// render our JSON body as HTML, painting the payload on screen. Defaulting it here keeps an app that
+// has not been updated safe rather than broken.
 NSString *stakeInAppMessageBodyMarker;
 // Stake custom: retain-and-present, enabled by subscribeToInAppMessage(useBrazeUI = NO). Only messages
 // this app renders itself are retained here by id, handed to JS and discarded from Braze's stack; JS
@@ -70,8 +71,9 @@ bool presentingAuthorisedInAppMessage;
 
 // Stake custom: most in-app messages retained for JS at once; the oldest are evicted beyond this.
 static const NSUInteger kMaxPendingInAppMessages = 10;
-// Stake custom: the `id` sent to JS for a message that was not retained and cannot be handed back.
-static const NSInteger kNotRetainedInAppMessageId = -1;
+// Stake custom: default claim marker. Version-agnostic on purpose ("V", not "V1"), so a new payload
+// version needs no plugin release, and so this default cannot drift out of step with JS.
+static NSString *const kDefaultStakeInAppMessageBodyMarker = @"stakeInAppMessageV";
 
 + (Braze *)braze {
   return _braze;
@@ -127,7 +129,7 @@ static const NSInteger kNotRetainedInAppMessageId = -1;
   nextInAppMessageId = 0;
   authorisedInAppMessage = nil;
   presentingAuthorisedInAppMessage = NO;
-  stakeInAppMessageBodyMarker = nil;
+  stakeInAppMessageBodyMarker = kDefaultStakeInAppMessageBodyMarker;
 
   [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(didFinishLaunchingListener:) name:UIApplicationDidFinishLaunchingNotification object:nil];
 
@@ -899,12 +901,13 @@ static const NSInteger kNotRetainedInAppMessageId = -1;
   useBrazeUIForInAppMessages = useBrazeUI;
   isInAppMessageSubscribed = YES;
 
-  // Stake custom: the marker identifying a message this app renders itself. JS owns the payload
-  // contract, so it supplies the marker instead of the plugin duplicating it. An absent or empty
-  // marker claims nothing, so every message stays with Braze.
+  // Stake custom: JS may override the marker identifying a message this app renders itself, so the
+  // payload contract can move without a plugin release. An absent or empty value keeps the default —
+  // clearing it would let Braze render our JSON body as HTML.
   id marker = [command argumentAtIndex:1 withDefault:nil];
-  BOOL markerIsUsable = [marker isKindOfClass:[NSString class]] && [(NSString *)marker length] > 0;
-  stakeInAppMessageBodyMarker = markerIsUsable ? (NSString *)marker : nil;
+  if ([marker isKindOfClass:[NSString class]] && [(NSString *)marker length] > 0) {
+    stakeInAppMessageBodyMarker = (NSString *)marker;
+  }
 
   // Stake custom: release a previous subscription's callback before replacing it. Overwriting it
   // alone would leave the old callback id pinned in Cordova's callback map for the life of the
@@ -1045,9 +1048,6 @@ static const NSInteger kNotRetainedInAppMessageId = -1;
 /// control message has no body and also fails, so Braze still logs its enrolment and A/B lift is
 /// unaffected.
 - (BOOL)isStakeRenderedInAppMessage:(BRZInAppMessageRaw *)message {
-  if (stakeInAppMessageBodyMarker == nil) {
-    return NO;
-  }
   NSString *body = message.message;
   if (body == nil) {
     return NO;

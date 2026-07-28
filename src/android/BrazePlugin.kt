@@ -49,19 +49,24 @@ open class BrazePlugin : CordovaPlugin() {
     private lateinit var applicationContext: Context
     private var pluginInitializationFinished = false
     private var disableAutoStartSessions = false
-    // Stake custom: hold in-app messages by default and present them on demand via getNextInApp().
-    // The app controls display timing; Braze's automatic display is suppressed (DISPLAY_LATER).
-    private var inAppMessageDisplayOperation: InAppMessageOperation = InAppMessageOperation.DISPLAY_LATER
     private var subscribeToInAppMessageCallbackContext: CallbackContext? = null
-    // Stake custom: one-shot flag set by getNextInApp() so the next held message is shown once.
-    private var displayNextInAppRequested = false
+    // Stake custom: sticky latch, set by the first getNextInApp() and never cleared. Before it is set,
+    // every in-app message is held so the app decides when the first one may appear; after it, messages
+    // present as they arrive, mid-session triggers included. Mirrors the pre-16 plugin's
+    // `inAppDisplayAttempts >= 1` check — WHEN a message is shown must not change with this plugin,
+    // only WHO renders it.
+    private var hasRequestedInAppDisplay = false
     // Stake custom: best-effort count of in-app messages currently held (see inAppMessagesRemainingOnStack).
     private val heldInAppMessageKeys = mutableSetOf<String>()
-    // Stake custom: retain-and-present, enabled by subscribeToInAppMessage(useBrazeUI = false).
-    // Messages are retained by id, handed to JS and discarded from Braze's stack; JS decides via
-    // showInAppMessage(id) / releaseInAppMessage(id). Without a subscription this stays false and
-    // the hold-and-getNextInApp behaviour above runs unchanged.
+    // Stake custom: retain-and-present, enabled by subscribeToInAppMessage(useBrazeUI = false). Only
+    // messages this app renders itself are retained by id, handed to JS and discarded from Braze's
+    // stack; JS decides via showInAppMessage(id) / releaseInAppMessage(id). Everything else is left
+    // to Braze.
     private var retainInAppMessagesForJs = false
+    // Stake custom: body marker identifying an in-app message this app renders itself. JS may override
+    // it on subscribe, but it is never cleared: without a marker nothing would be claimed and Braze
+    // would render our JSON body as HTML, painting the payload on screen.
+    private var stakeInAppMessageBodyMarker = DEFAULT_STAKE_IN_APP_MESSAGE_BODY_MARKER
     private val pendingInAppMessages = LinkedHashMap<Int, IInAppMessage>()
     private var nextInAppMessageId = 0
     // Stake custom: the message JS handed back with showInAppMessage(id). Matched in the listener by
@@ -377,14 +382,13 @@ open class BrazePlugin : CordovaPlugin() {
             }
             "subscribeToInAppMessage" -> {
                 val useBrazeUI = args.getBoolean(0)
-                inAppMessageDisplayOperation = if (useBrazeUI) {
-                    InAppMessageOperation.DISPLAY_NOW
-                } else {
-                    // Stake custom: hold (not discard) so getNextInApp() can present the message later.
-                    InAppMessageOperation.DISPLAY_LATER
-                }
-                // Stake custom: retain-and-present is the useBrazeUI = false contract.
+                // Stake custom: retain-and-present is the useBrazeUI = false contract. Display timing
+                // is governed by the getNextInApp() latch either way, so this only decides WHO renders.
                 retainInAppMessagesForJs = !useBrazeUI
+                // Stake custom: JS may override the claim marker, so the payload contract can move
+                // without a plugin release. An absent or empty value keeps the default — clearing it
+                // would let Braze render our JSON body as HTML.
+                args.optString(1).takeIf { it.isNotEmpty() }?.let { stakeInAppMessageBodyMarker = it }
                 // Stake custom: release a previous subscription's callback before replacing it.
                 // Overwriting it alone would leave the old CallbackContext pinned in Cordova's
                 // callback map for the life of the page, never completed and never called again.
@@ -399,8 +403,10 @@ open class BrazePlugin : CordovaPlugin() {
                 return true
             }
             "getNextInApp" -> {
-                // Stake custom: present the next held in-app message.
-                displayNextInAppRequested = true
+                // Stake custom: present the next held in-app message, and mark the app ready to show
+                // them. The latch is sticky — the app is saying "I am ready", not "show me one" — so
+                // later messages, including mid-session triggers, present as they arrive.
+                hasRequestedInAppDisplay = true
                 BrazeInAppMessageManager.getInstance().requestDisplayInAppMessage()
                 callbackContext.success()
                 return true
@@ -1002,13 +1008,28 @@ open class BrazePlugin : CordovaPlugin() {
                     }
 
                     val inAppMessageJson = inAppMessage.forJsonPut().toString()
-                    brazelog { "In-app message received: $inAppMessageJson" }
 
-                    // Stake custom: retain-and-present. Gated on subscribeToInAppMessage(useBrazeUI = false):
-                    // we keep the object ourselves and hand JS an id it can give back.
+                    // Stake custom: WHEN. Until the app is ready, hold the message — nothing is
+                    // inspected, retained or sent to JS while it waits, so a held message is
+                    // indistinguishable from one held by the pre-16 plugin.
+                    if (!hasRequestedInAppDisplay) {
+                        heldInAppMessageKeys.add(inAppMessageJson)
+                        return InAppMessageOperation.DISPLAY_LATER
+                    }
+                    heldInAppMessageKeys.remove(inAppMessageJson)
+
+                    // Stake custom: WHO renders it. Only a message carrying our payload is claimed;
+                    // everything else is Braze's to render, exactly as before this plugin existed.
                     val callbackContext = subscribeToInAppMessageCallbackContext
-                    val retainForJs = retainInAppMessagesForJs && callbackContext != null
-                    val retainedId = if (retainForJs) retainInAppMessage(inAppMessage) else NOT_RETAINED_IN_APP_MESSAGE_ID
+                    val retainForJs = retainInAppMessagesForJs &&
+                        callbackContext != null &&
+                        isStakeRenderedInAppMessage(inAppMessage)
+                    if (!retainForJs) {
+                        return InAppMessageOperation.DISPLAY_NOW
+                    }
+
+                    brazelog { "In-app message received: $inAppMessageJson" }
+                    val retainedId = retainInAppMessage(inAppMessage)
 
                     callbackContext?.let { context ->
                         // Stake custom: the callback carries the *unescaped* JSON. escapeStringForJavaScript
@@ -1028,25 +1049,25 @@ open class BrazePlugin : CordovaPlugin() {
                     }
 
                     // Stake custom: we own the retained message now — take it out of Braze's stack.
-                    if (retainForJs) {
-                        return InAppMessageOperation.DISCARD
-                    }
-
-                    // Stake custom: present the message only when getNextInApp() has requested it;
-                    // otherwise apply the configured operation (DISPLAY_LATER by default = hold on the stack).
-                    return if (displayNextInAppRequested) {
-                        displayNextInAppRequested = false
-                        heldInAppMessageKeys.remove(inAppMessageJson)
-                        InAppMessageOperation.DISPLAY_NOW
-                    } else {
-                        if (inAppMessageDisplayOperation == InAppMessageOperation.DISPLAY_LATER) {
-                            heldInAppMessageKeys.add(inAppMessageJson)
-                        }
-                        inAppMessageDisplayOperation
-                    }
+                    return InAppMessageOperation.DISCARD
                 }
             }
         )
+    }
+
+    /**
+     * Stake custom: whether [inAppMessage] carries a body this app renders itself, so Braze must not
+     * draw it.
+     *
+     * Deliberately the same narrow, version-agnostic test JS applies: the body must be a JSON document
+     * (starts with `{`) carrying the marker. Anything Braze authored — survey, NPS, drag-and-drop
+     * template, hand-written HTML — has an HTML body, fails the test and is left entirely to Braze. A
+     * control message has no body and also fails, so Braze still logs its enrolment and A/B lift is
+     * unaffected.
+     */
+    private fun isStakeRenderedInAppMessage(inAppMessage: IInAppMessage): Boolean {
+        val body = inAppMessage.message?.trim() ?: return false
+        return body.startsWith("{") && body.contains(stakeInAppMessageBodyMarker)
     }
 
     /**
@@ -1118,8 +1139,11 @@ open class BrazePlugin : CordovaPlugin() {
         /** Most in-app messages retained for JS at once; the oldest are evicted beyond this. */
         private const val MAX_PENDING_IN_APP_MESSAGES = 10
 
-        /** The `id` sent to JS for a message that was not retained and so cannot be handed back. */
-        private const val NOT_RETAINED_IN_APP_MESSAGE_ID = -1
+        /**
+         * Default claim marker. Version-agnostic on purpose ("V", not "V1"), so a new payload version
+         * needs no plugin release, and so this default cannot drift out of step with JS.
+         */
+        private const val DEFAULT_STAKE_IN_APP_MESSAGE_BODY_MARKER = "stakeInAppMessageV"
 
         // Content Card method names
         private const val GET_CONTENT_CARDS_FROM_SERVER_METHOD = "getContentCardsFromServer"
