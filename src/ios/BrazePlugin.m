@@ -46,14 +46,21 @@ static Braze *_braze;
 
 bool isInAppMessageSubscribed;
 bool useBrazeUIForInAppMessages;
-// Stake custom: one-shot flag set by getNextInApp() so the next held message is presented once.
-bool displayNextInAppRequested;
+// Stake custom: sticky latch, set by the first getNextInApp() and never cleared. Before it is set,
+// every in-app message is held on Braze's stack so the app decides when the first one may appear;
+// after it, messages present as they arrive, mid-session triggers included. This mirrors the pre-16
+// plugin's `inAppDisplayAttempts >= 1` check — WHEN a message is shown must not change with this
+// plugin, only WHO renders it.
+bool hasRequestedInAppDisplay;
 // Stake custom: best-effort count of in-app messages currently held (see inAppMessagesRemainingOnStack).
 int inAppMessagesHeldCount;
-// Stake custom: retain-and-present, enabled by subscribeToInAppMessage(useBrazeUI = NO). Messages
-// are retained here by id, handed to JS and discarded from Braze's stack; JS decides via
-// showInAppMessage(id) / releaseInAppMessage(id). Without a subscription nothing is retained and
-// the hold-and-getNextInApp behaviour above runs unchanged.
+// Stake custom: body marker identifying an in-app message this app renders itself. Supplied by JS on
+// subscribe, so the payload contract lives in one place rather than being hard-coded here. Nil claims
+// nothing, which leaves every message to Braze.
+NSString *stakeInAppMessageBodyMarker;
+// Stake custom: retain-and-present, enabled by subscribeToInAppMessage(useBrazeUI = NO). Only messages
+// this app renders itself are retained here by id, handed to JS and discarded from Braze's stack; JS
+// decides via showInAppMessage(id) / releaseInAppMessage(id). Everything else is left to Braze.
 NSMutableDictionary<NSNumber *, BRZInAppMessageRaw *> *pendingInAppMessages;
 NSInteger nextInAppMessageId;
 // Stake custom: the message JS handed back with showInAppMessage(id), and the window during which
@@ -112,14 +119,15 @@ static const NSInteger kNotRetainedInAppMessageId = -1;
 
   isInAppMessageSubscribed = NO;
   useBrazeUIForInAppMessages = YES;
-  // Stake custom: in-app messages are held until getNextInApp() requests one.
-  displayNextInAppRequested = NO;
+  // Stake custom: in-app messages are held until the first getNextInApp().
+  hasRequestedInAppDisplay = NO;
   inAppMessagesHeldCount = 0;
   // Stake custom: retain-and-present state.
   pendingInAppMessages = [NSMutableDictionary dictionary];
   nextInAppMessageId = 0;
   authorisedInAppMessage = nil;
   presentingAuthorisedInAppMessage = NO;
+  stakeInAppMessageBodyMarker = nil;
 
   [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(didFinishLaunchingListener:) name:UIApplicationDidFinishLaunchingNotification object:nil];
 
@@ -891,6 +899,13 @@ static const NSInteger kNotRetainedInAppMessageId = -1;
   useBrazeUIForInAppMessages = useBrazeUI;
   isInAppMessageSubscribed = YES;
 
+  // Stake custom: the marker identifying a message this app renders itself. JS owns the payload
+  // contract, so it supplies the marker instead of the plugin duplicating it. An absent or empty
+  // marker claims nothing, so every message stays with Braze.
+  id marker = [command argumentAtIndex:1 withDefault:nil];
+  BOOL markerIsUsable = [marker isKindOfClass:[NSString class]] && [(NSString *)marker length] > 0;
+  stakeInAppMessageBodyMarker = markerIsUsable ? (NSString *)marker : nil;
+
   // Stake custom: release a previous subscription's callback before replacing it. Overwriting it
   // alone would leave the old callback id pinned in Cordova's callback map for the life of the
   // page, never completed and never called again.
@@ -925,10 +940,14 @@ static const NSInteger kNotRetainedInAppMessageId = -1;
   [self.commandDelegate sendPluginResult:result callbackId:command.callbackId];
 }
 
-/// Presents the next in-app message held on the stack.
+/// Presents the next in-app message held on the stack, and marks the app ready to show them.
+///
+/// The readiness latch is deliberately sticky: the app is saying "I am ready to show in-app messages",
+/// not "show me exactly one". Messages arriving later — including mid-session triggers — present as
+/// they arrive rather than waiting for another call.
 - (void)getNextInApp:(CDVInvokedUrlCommand *)command {
   NSLog(@"Displaying next in-app message");
-  displayNextInAppRequested = YES;
+  hasRequestedInAppDisplay = YES;
   [(BrazeInAppMessageUI *)self.braze.inAppMessagePresenter presentNext];
 
   CDVPluginResult *result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"OK"];
@@ -944,6 +963,11 @@ static const NSInteger kNotRetainedInAppMessageId = -1;
 }
 
 /// Hands a retained in-app message back to Braze so Braze renders it with its own UI.
+///
+/// Nothing should reach here in normal operation: only messages this app renders itself are retained,
+/// and those are drawn in-app or dropped. It stays as a safety net, which means it has to actually
+/// work — retaining a message takes it off Braze's stack, and BrazeUI refuses to present a message
+/// whose context is no longer valid, so the context is rebuilt before presenting.
 - (void)showInAppMessage:(CDVInvokedUrlCommand *)command {
   BRZInAppMessageRaw *message = [self takePendingInAppMessage:[command argumentAtIndex:0 withDefault:nil]];
   if (message == nil) {
@@ -952,6 +976,13 @@ static const NSInteger kNotRetainedInAppMessageId = -1;
                                               messageAsString:@"No retained in-app message for the given id"];
     [self.commandDelegate sendPluginResult:error callbackId:command.callbackId];
     return;
+  }
+
+  // Rebuild the context when it is missing or spent. Discarding a message ends its context, and a
+  // dead context is worse than none: BrazeUI waves a context-less message through but rejects one
+  // whose context is invalid.
+  if (message.context == nil || !message.context.valid) {
+    message.context = [[BRZInAppMessageContext alloc] initWithMessageRaw:message using:self.braze];
   }
 
   // -presentMessage: re-enters the display-choice delegate synchronously, so the authorisation
@@ -1004,6 +1035,25 @@ static const NSInteger kNotRetainedInAppMessageId = -1;
   authorisedInAppMessage = nil;
   presentingAuthorisedInAppMessage = NO;
   [pendingInAppMessages removeAllObjects];
+}
+
+/// Whether `message` carries a body this app renders itself, so Braze must not draw it.
+///
+/// Deliberately the same narrow, version-agnostic test JS applies: the body must be a JSON document
+/// (starts with `{`) carrying the marker. Anything Braze authored — survey, NPS, drag-and-drop
+/// template, hand-written HTML — has an HTML body, fails the test and is left entirely to Braze. A
+/// control message has no body and also fails, so Braze still logs its enrolment and A/B lift is
+/// unaffected.
+- (BOOL)isStakeRenderedInAppMessage:(BRZInAppMessageRaw *)message {
+  if (stakeInAppMessageBodyMarker == nil) {
+    return NO;
+  }
+  NSString *body = message.message;
+  if (body == nil) {
+    return NO;
+  }
+  NSString *trimmedBody = [body stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+  return [trimmedBody hasPrefix:@"{"] && [trimmedBody containsString:stakeInAppMessageBodyMarker];
 }
 
 /// Whether `message` is the message JS handed back with showInAppMessage(id).
@@ -1443,7 +1493,17 @@ static const NSInteger kNotRetainedInAppMessageId = -1;
 
 // MARK: - BrazeInAppMessageUIDelegate
 
+/// Decides what happens to one in-app message, in two independent steps.
+///
+/// **WHEN** is decided first and identically for every message, matching the pre-16 plugin: hold until
+/// the app has called getNextInApp() once, then present as they arrive. **WHO renders it** is decided
+/// second, and is the only thing this plugin changes — a message carrying our payload goes to JS to be
+/// drawn in-app, anything else is Braze's to render exactly as before.
 - (enum BRZInAppMessageUIDisplayChoice)inAppMessage:(BrazeInAppMessageUI *)ui displayChoiceForMessage:(BRZInAppMessageRaw *)message {
+  // Stake custom: the pre-16 plugin presented every in-app message without animation.
+  message.animateIn = NO;
+  message.animateOut = NO;
+
   // Stake custom: JS handed this exact message back with showInAppMessage(id) — let Braze render it.
   if ([self isAuthorisedInAppMessage:message]) {
     authorisedInAppMessage = nil;
@@ -1451,51 +1511,46 @@ static const NSInteger kNotRetainedInAppMessageId = -1;
     return BRZInAppMessageUIDisplayChoiceNow;
   }
 
-  // Stake custom: retain-and-present. Gated on subscribeToInAppMessage(useBrazeUI = NO): we keep
-  // the message object ourselves and hand JS an id it can give back.
-  BOOL retainForJs = isInAppMessageSubscribed && !useBrazeUIForInAppMessages && self.subscribeToInAppMessageCallbackID != nil;
-  NSInteger retainedId = retainForJs ? [self retainInAppMessage:message] : kNotRetainedInAppMessageId;
-
-  if (isInAppMessageSubscribed) {
-    NSData *inAppMessageData = [message json];
-    NSString *inAppMessageString = [[NSString alloc] initWithData:inAppMessageData encoding:NSUTF8StringEncoding];
-    NSLog(@"In-app message received: %@", inAppMessageString);
-
-    if (self.subscribeToInAppMessageCallbackID) {
-      // Stake custom: the callback carries the *unescaped* JSON. escapeStringForJavaScript exists
-      // for the inline evalJs statement below only; on a plugin result it yields {\"version\":…},
-      // which JSON.parse rejects.
-      CDVPluginResult *result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK
-                                              messageAsDictionary:@{@"id": @(retainedId), @"message": inAppMessageString ?: @""}];
-      [result setKeepCallbackAsBool:YES];
-      [self.commandDelegate sendPluginResult:result callbackId:self.subscribeToInAppMessageCallbackID];
-    }
-
-    // Send in-app message string back to JavaScript in an `inAppMessageReceived` event
-    NSString* jsStatement = [NSString stringWithFormat:@"app.inAppMessageReceived('%@');", [self escapeStringForJavaScript:inAppMessageString]];
-    [self.commandDelegate evalJs:jsStatement];
-  }
-
-  // Stake custom: we own the retained message now — take it out of Braze's stack.
-  if (retainForJs) {
-    return BRZInAppMessageUIDisplayChoiceDiscard;
-  }
-
-  // Stake custom: present the message only when getNextInApp() has requested it; otherwise hold it
-  // on the stack (re-enqueue) so the app controls display timing. An explicit
-  // subscribeToInAppMessage(useBrazeUI = YES) opts back into Braze's automatic display.
-  if (displayNextInAppRequested) {
-    displayNextInAppRequested = NO;
-    if (inAppMessagesHeldCount > 0) {
-      inAppMessagesHeldCount -= 1;
-    }
-    return BRZInAppMessageUIDisplayChoiceNow;
-  } else if (isInAppMessageSubscribed && useBrazeUIForInAppMessages) {
-    return BRZInAppMessageUIDisplayChoiceNow;
-  } else {
+  // Stake custom: WHEN. Until the app is ready, hold the message on Braze's stack — nothing is
+  // inspected, retained or sent to JS while it waits, so a held message keeps a live context and is
+  // indistinguishable from one held by the pre-16 plugin.
+  if (!hasRequestedInAppDisplay) {
     inAppMessagesHeldCount += 1;
     return BRZInAppMessageUIDisplayChoiceReenqueue;
   }
+  if (inAppMessagesHeldCount > 0) {
+    inAppMessagesHeldCount -= 1;
+  }
+
+  // Stake custom: WHO renders it. Only a message carrying our payload is claimed; an explicit
+  // subscribeToInAppMessage(useBrazeUI = YES) opts out of claiming altogether.
+  BOOL retainForJs = isInAppMessageSubscribed
+                     && !useBrazeUIForInAppMessages
+                     && self.subscribeToInAppMessageCallbackID != nil
+                     && [self isStakeRenderedInAppMessage:message];
+  if (!retainForJs) {
+    return BRZInAppMessageUIDisplayChoiceNow;
+  }
+
+  NSInteger retainedId = [self retainInAppMessage:message];
+  NSData *inAppMessageData = [message json];
+  NSString *inAppMessageString = [[NSString alloc] initWithData:inAppMessageData encoding:NSUTF8StringEncoding];
+  NSLog(@"In-app message received: %@", inAppMessageString);
+
+  // Stake custom: the callback carries the *unescaped* JSON. escapeStringForJavaScript exists for the
+  // inline evalJs statement below only; on a plugin result it yields {\"version\":…}, which
+  // JSON.parse rejects.
+  CDVPluginResult *result = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK
+                                          messageAsDictionary:@{@"id": @(retainedId), @"message": inAppMessageString ?: @""}];
+  [result setKeepCallbackAsBool:YES];
+  [self.commandDelegate sendPluginResult:result callbackId:self.subscribeToInAppMessageCallbackID];
+
+  // Send in-app message string back to JavaScript in an `inAppMessageReceived` event
+  NSString* jsStatement = [NSString stringWithFormat:@"app.inAppMessageReceived('%@');", [self escapeStringForJavaScript:inAppMessageString]];
+  [self.commandDelegate evalJs:jsStatement];
+
+  // Stake custom: we own the retained message now — take it out of Braze's stack.
+  return BRZInAppMessageUIDisplayChoiceDiscard;
 }
 
 @end

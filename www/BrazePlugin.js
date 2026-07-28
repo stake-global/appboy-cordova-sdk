@@ -3,15 +3,19 @@ var BrazePlugin = function () {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Stake custom functions
-// Controls *when* Braze in-app messages are displayed. Braze's automatic display
-// is suppressed natively, and there are two ways to drive display from JS:
+// Two independent things are controlled here.
 //
-//   1. No subscription — messages are held on Braze's stack and presented one at
-//      a time with getNextInApp().
-//   2. subscribeToInAppMessage(cb, err, false) — messages are retained natively,
-//      handed to `cb` as { id, message } and discarded from Braze's stack. JS then
-//      either hands one back with showInAppMessage(id) so Braze renders it, or
-//      renders it itself and calls releaseInAppMessage(id).
+// *When* a message is displayed. Braze's automatic display is suppressed until the
+// app calls getNextInApp() once; from then on messages present as they arrive,
+// mid-session triggers included. That latch is sticky — one call means "ready",
+// not "show me one" — and it applies to every message regardless of who renders it.
+//
+// *Who renders it.* Pass a claim marker to subscribeToInAppMessage(cb, err, false,
+// marker) and any message whose body is a JSON document containing that marker is
+// retained natively, handed to `cb` as { id, message } and discarded from Braze's
+// stack, for the app to draw itself. Every other message — surveys, NPS, templates,
+// plain HTML campaigns, control messages — is left to Braze and never reaches `cb`.
+// Without a marker nothing is claimed and Braze renders everything.
 //
 // See the "Stake custom" sections of BrazePlugin.kt (Android) and BrazePlugin.m (iOS).
 // ─────────────────────────────────────────────────────────────────────────────
@@ -535,11 +539,17 @@ BrazePlugin.prototype.logContentCardDismissed = function (cardId) {
  * back verbatim to logInAppMessageImpression / logInAppMessageClicked / logInAppMessageButtonClicked
  * / performInAppMessageAction.
  *
- * Stake custom: with `useBrazeUI = false` the message is retained natively and discarded from
- * Braze's stack — the app owns it, and `id` is the handle for showInAppMessage(id) (hand it back to
- * Braze) or releaseInAppMessage(id) (done with it). With `useBrazeUI = true`, or before any
- * subscription, nothing is retained, `id` is `-1`, and the message stays on Braze's stack for
- * getNextInApp().
+ * Stake custom: with `useBrazeUI = false` and a `claimMarker`, ONLY messages whose body is a JSON
+ * document containing that marker reach `successCallback`. Such a message is retained natively and
+ * discarded from Braze's stack — the app owns it, and `id` is the handle for showInAppMessage(id)
+ * (hand it back to Braze) or releaseInAppMessage(id) (done with it). Every other message is rendered
+ * by Braze and never reaches the callback, so subscribing cannot change how existing campaigns behave.
+ *
+ * With `useBrazeUI = true`, no marker, or before any subscription, nothing is claimed and Braze
+ * renders everything.
+ *
+ * Subscribing does NOT change display timing — that is governed by the getNextInApp() latch and is
+ * the same for claimed and unclaimed messages alike.
  *
  * Call this ONCE per page lifetime. There is a single subscriber slot: re-subscribing replaces the
  * previous callback (the old one is released natively, so it is never invoked again). Re-subscribing
@@ -547,9 +557,11 @@ BrazePlugin.prototype.logContentCardDismissed = function (cardId) {
  * showInAppMessage(id) / releaseInAppMessage(id) or changeUser.
  *
  * @param {boolean} useBrazeUI - Whether to use Braze's UI for in-app messages
+ * @param {string} [claimMarker] - Body marker identifying messages the app renders itself. Omit to
+ *                                 claim nothing.
  */
-BrazePlugin.prototype.subscribeToInAppMessage = function (successCallback, errorCallback, useBrazeUI = true) {
-    cordova.exec(successCallback, errorCallback, "BrazePlugin", "subscribeToInAppMessage", [useBrazeUI]);
+BrazePlugin.prototype.subscribeToInAppMessage = function (successCallback, errorCallback, useBrazeUI = true, claimMarker = null) {
+    cordova.exec(successCallback, errorCallback, "BrazePlugin", "subscribeToInAppMessage", [useBrazeUI, claimMarker]);
 }
 
 /**
