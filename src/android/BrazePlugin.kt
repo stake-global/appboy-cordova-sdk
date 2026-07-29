@@ -388,7 +388,13 @@ open class BrazePlugin : CordovaPlugin() {
                 // Stake custom: JS may override the claim marker, so the payload contract can move
                 // without a plugin release. An absent or empty value keeps the default — clearing it
                 // would let Braze render our JSON body as HTML.
-                args.optString(1).takeIf { it.isNotEmpty() }?.let { stakeInAppMessageBodyMarker = it }
+                //
+                // The isNull guard is load-bearing: JS defaults the argument to null, and optString
+                // returns the string "null" for a JSON null, not "". Without it the marker becomes
+                // "null", nothing is ever claimed, and Braze paints our payload on screen.
+                if (!args.isNull(1)) {
+                    args.optString(1).takeIf { it.isNotEmpty() }?.let { stakeInAppMessageBodyMarker = it }
+                }
                 // Stake custom: release a previous subscription's callback before replacing it.
                 // Overwriting it alone would leave the old CallbackContext pinned in Cordova's
                 // callback map for the life of the page, never completed and never called again.
