@@ -1049,9 +1049,14 @@ open class BrazePlugin : CordovaPlugin() {
                         context.sendPluginResult(pluginResult)
                     }
 
+                    // Stake custom: null-safe because Capacitor's Cordova shim
+                    // (MockCordovaWebViewImpl.getEngine) always returns null, so the upstream call
+                    // crashes the app the first time a message is claimed. The plugin result above is
+                    // how the payload actually reaches JS; this is upstream's legacy channel for
+                    // classic Cordova apps, where `app.inAppMessageReceived` exists.
                     val jsStatement = "app.inAppMessageReceived('${escapeStringForJavaScript(inAppMessageJson)}');"
                     cordova.activity.runOnUiThread {
-                        webView.engine.evaluateJavascript(jsStatement, null)
+                        webView.engine?.evaluateJavascript(jsStatement, null)
                     }
 
                     // Stake custom: we own the retained message now — take it out of Braze's stack.
