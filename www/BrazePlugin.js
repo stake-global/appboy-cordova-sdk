@@ -11,18 +11,23 @@ var BrazePlugin = function () {
 // not "show me one" — and it applies to every message regardless of who renders it.
 //
 // *Who renders it.* With subscribeToInAppMessage(cb, err, false), any message whose
-// body contains the claim marker anywhere is retained natively, handed to `cb` as
-// { id, message } and discarded from Braze's stack, for the app to draw itself. Every
-// other message — surveys, NPS, templates, plain HTML campaigns, control messages —
-// is left to Braze and never reaches `cb`. The marker defaults to the Stake payload
-// marker natively; pass a 4th argument only to override it. It is never cleared,
-// because an unmarked plugin would hand the payload to Braze, which renders the body
-// as HTML.
+// body contains the claim marker anywhere is retained natively and handed to `cb` as
+// { id, message } for the app to draw itself. Every other message — surveys, NPS,
+// templates, plain HTML campaigns, control messages — is rendered by Braze and never
+// reaches `cb`. The marker defaults to the Stake payload marker natively; pass a 4th
+// argument only to override it. It is never cleared, because an unmarked plugin would
+// hand the payload to Braze, which renders the body as HTML.
 //
 // The native test is a plain substring match, so it can over-claim: a Braze-authored
 // message that merely mentions the marker in its copy reaches `cb`. That is the safe
 // direction — `cb` applies the precise test and returns anything it does not own via
 // showInAppMessage(id).
+//
+// Both platforms decide this at their SDK's single hand-off point, so no message can
+// reach a screen without being offered to the app first. On iOS the plugin registers
+// itself as the BrazeInAppMessagePresenter and keeps Braze's UI privately; on Android
+// it is the in-app message manager listener, which the SDK consults on every attempt
+// to display. Neither platform lets a claimable message sit in a Braze-owned queue.
 //
 // See the "Stake custom" sections of BrazePlugin.kt (Android) and BrazePlugin.m (iOS).
 // ─────────────────────────────────────────────────────────────────────────────
