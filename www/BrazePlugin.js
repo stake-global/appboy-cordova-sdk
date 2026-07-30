@@ -11,13 +11,18 @@ var BrazePlugin = function () {
 // not "show me one" — and it applies to every message regardless of who renders it.
 //
 // *Who renders it.* With subscribeToInAppMessage(cb, err, false), any message whose
-// body is a JSON document containing the claim marker is retained natively, handed
-// to `cb` as { id, message } and discarded from Braze's stack, for the app to draw
-// itself. Every other message — surveys, NPS, templates, plain HTML campaigns,
-// control messages — is left to Braze and never reaches `cb`. The marker defaults to
-// the Stake payload marker natively; pass a 4th argument only to override it. It is
-// never cleared, because an unmarked plugin would hand a JSON body to Braze, which
-// renders it as HTML and paints the payload on screen.
+// body contains the claim marker anywhere is retained natively, handed to `cb` as
+// { id, message } and discarded from Braze's stack, for the app to draw itself. Every
+// other message — surveys, NPS, templates, plain HTML campaigns, control messages —
+// is left to Braze and never reaches `cb`. The marker defaults to the Stake payload
+// marker natively; pass a 4th argument only to override it. It is never cleared,
+// because an unmarked plugin would hand the payload to Braze, which renders the body
+// as HTML.
+//
+// The native test is a plain substring match, so it can over-claim: a Braze-authored
+// message that merely mentions the marker in its copy reaches `cb`. That is the safe
+// direction — `cb` applies the precise test and returns anything it does not own via
+// showInAppMessage(id).
 //
 // See the "Stake custom" sections of BrazePlugin.kt (Android) and BrazePlugin.m (iOS).
 // ─────────────────────────────────────────────────────────────────────────────
@@ -541,15 +546,18 @@ BrazePlugin.prototype.logContentCardDismissed = function (cardId) {
  * back verbatim to logInAppMessageImpression / logInAppMessageClicked / logInAppMessageButtonClicked
  * / performInAppMessageAction.
  *
- * Stake custom: with `useBrazeUI = false`, ONLY messages whose body is a JSON document containing the
- * claim marker reach `successCallback`. Such a message is retained natively and discarded from Braze's
- * stack — the app owns it, and `id` is the handle for showInAppMessage(id) (hand it back to Braze) or
- * releaseInAppMessage(id) (done with it). Every other message is rendered by Braze and never reaches
- * the callback, so subscribing cannot change how existing campaigns behave.
+ * Stake custom: with `useBrazeUI = false`, ONLY messages whose body contains the claim marker reach
+ * `successCallback`. Such a message is retained natively and discarded from Braze's stack — the app owns
+ * it, and `id` is the handle for showInAppMessage(id) (hand it back to Braze) or releaseInAppMessage(id)
+ * (done with it). Every other message is rendered by Braze and never reaches the callback, so
+ * subscribing cannot change how existing campaigns behave.
+ *
+ * The match is a plain substring test, so `successCallback` must be prepared to receive a message it
+ * does not own and hand it back with showInAppMessage(id).
  *
  * With `useBrazeUI = true`, or before any subscription, nothing is claimed and Braze renders
- * everything — which means a JSON-bodied message would be painted as HTML, so only do that when no
- * such campaign can reach the app.
+ * everything — the payload body is then rendered as HTML, so only do that when no such campaign can
+ * reach the app.
  *
  * Subscribing does NOT change display timing — that is governed by the getNextInApp() latch and is
  * the same for claimed and unclaimed messages alike.

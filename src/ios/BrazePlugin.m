@@ -1042,18 +1042,23 @@ static NSString *const kDefaultStakeInAppMessageBodyMarker = @"stakeInAppMessage
 
 /// Whether `message` carries a body this app renders itself, so Braze must not draw it.
 ///
-/// Deliberately the same narrow, version-agnostic test JS applies: the body must be a JSON document
-/// (starts with `{`) carrying the marker. Anything Braze authored — survey, NPS, drag-and-drop
-/// template, hand-written HTML — has an HTML body, fails the test and is left entirely to Braze. A
-/// control message has no body and also fails, so Braze still logs its enrolment and A/B lift is
-/// unaffected.
+/// A version-agnostic substring test on the whole body. A Stake body is an inert HTML document with the
+/// payload in a script block, so it does not start with `{` — there is no cheap structural prefix left
+/// to test here, and a stricter test would let Braze draw the payload.
+///
+/// This deliberately errs toward over-claiming: JS applies the narrow test (extract the payload script,
+/// then look for the marker inside it) and hands anything native wrongly claimed straight back with
+/// showInAppMessage(id). Over-claiming costs a round trip; under-claiming paints a payload on screen.
+///
+/// Anything Braze authored — survey, NPS, drag-and-drop template, hand-written HTML — carries no marker
+/// and is left entirely to Braze. A control message has no body and also fails, so Braze still logs its
+/// enrolment and A/B lift is unaffected.
 - (BOOL)isStakeRenderedInAppMessage:(BRZInAppMessageRaw *)message {
   NSString *body = message.message;
   if (body == nil) {
     return NO;
   }
-  NSString *trimmedBody = [body stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
-  return [trimmedBody hasPrefix:@"{"] && [trimmedBody containsString:stakeInAppMessageBodyMarker];
+  return [body containsString:stakeInAppMessageBodyMarker];
 }
 
 /// Whether `message` is the message JS handed back with showInAppMessage(id).
