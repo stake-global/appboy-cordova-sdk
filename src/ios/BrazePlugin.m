@@ -76,8 +76,9 @@ NSMutableArray<BRZInAppMessageRaw *> *heldInAppMessages;
 // has not been updated safe rather than broken.
 NSString *stakeInAppMessageBodyMarker;
 // Stake custom: retain-and-present, enabled by subscribeToInAppMessage(useBrazeUI = NO). Only messages
-// this app renders itself are retained here by id, handed to JS and discarded from Braze's stack; JS
-// decides via showInAppMessage(id) / releaseInAppMessage(id). Everything else is left to Braze.
+// this app renders itself are retained here by id and handed to JS; JS decides via
+// showInAppMessage(id) / releaseInAppMessage(id). Everything else is forwarded to Braze's own UI.
+// Nothing needs discarding: as the presenter, not forwarding a message is all it takes to own it.
 NSMutableDictionary<NSNumber *, BRZInAppMessageRaw *> *pendingInAppMessages;
 NSInteger nextInAppMessageId;
 
