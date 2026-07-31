@@ -1,17 +1,70 @@
 # Stake fork
 
 This is Stake's fork of the Braze Cordova SDK, re-based cleanly onto upstream **16.0.1**. The only
-differences from upstream are a small set of clearly-marked Stake customizations that let the app
-control *when* Braze in-app messages are displayed:
+differences from upstream are a small set of Stake customizations, every one of them commented
+`// Stake custom:` so the next upstream bump can be re-applied by diffing against the upstream tag.
+They cover two things Braze's own plugin does not expose: **when** an in-app message is displayed,
+and **who** draws it.
 
-- **`promptForPush()`** (iOS) — prompts for push permission and informs Braze of the result. On
-  Android the app calls the standard `requestPushPermission()`.
-- **`getNextInApp(success, error)`** — presents the next in-app message held on the stack.
-- **`inAppMessagesRemainingOnStack(success, error)`** — best-effort count of held in-app messages.
+### Push
 
-Braze's automatic in-app display is suppressed by default (held / re-enqueued); messages are
-presented on demand via `getNextInApp()`. Implemented with a single in-app message listener
-(`BrazePlugin.kt`) / `BrazeInAppMessageUIDelegate` (`BrazePlugin.m`) — no competing listeners.
+- **`promptForPush()`** (iOS) — prompts for push permission and informs Braze of the result, so the
+  app can ask at a chosen moment rather than on first launch. On Android the app calls the standard
+  `requestPushPermission()`. This is the original reason the fork exists.
+
+### Display timing — WHEN
+
+Braze's automatic display is suppressed. Every triggered message is held until the app says it is
+ready, and the latch is deliberately sticky — one call means "ready", not "show me one", so
+mid-session triggers present as they arrive.
+
+- **`getNextInApp(success, error)`** — opens the latch and presents the next held message.
+- **`inAppMessagesRemainingOnStack(success, error)`** — best-effort count of what is still waiting.
+
+### Rendering ownership — WHO
+
+`subscribeToInAppMessage(cb, err, useBrazeUI = false)` makes native **retain** a claimed message and
+hand JS `{ id, message }` instead of drawing it. JS then either renders it with its own components
+and calls `releaseInAppMessage(id)`, or returns it with `showInAppMessage(id)` for Braze to draw.
+This mirrors the Web SDK's two-step contract, which had no mobile equivalent.
+
+- **`showInAppMessage(id, success, error)`** — hand a retained message back to Braze. Errors on an
+  id that is not retained: it cannot deliver what it promises.
+- **`releaseInAppMessage(id, success, error)`** — stop retaining a message JS is finished with.
+  Idempotent — an id already shown, released or evicted still succeeds.
+
+A message is claimed only when its body **contains** the marker `stakeInAppMessageV`. The marker is
+version-agnostic on purpose, and JS can override it via the fourth `subscribeToInAppMessage`
+argument, so the payload contract can change without a plugin release. Anything Braze authored
+(survey, NPS, drag-and-drop template, plain HTML) carries no marker, is never claimed, and renders
+exactly as it did before this fork. The test errs toward *over*-claiming: JS applies the precise
+check and hands back anything it does not own. Over-claiming costs a round trip; under-claiming
+paints a payload on screen.
+
+The id is a **plugin-local retention handle** (`nextInAppMessageId++`), not a Braze message
+identity — two retentions of the same campaign get different ids. It is only meaningful as the
+argument to the two calls above, and a non-numeric id is rejected rather than coerced, because `0`
+is a real id.
+
+### Interception points
+
+Each SDK has exactly one place the trigger engine hands a message over, and the fork hooks that
+place and nothing below it.
+
+- **iOS** — the plugin registers itself as the `BrazeInAppMessagePresenter` and holds
+  `BrazeInAppMessageUI` privately, so `presentMessage:` is the single funnel. It replaced a
+  `BrazeInAppMessageUIDelegate` hook, which sat one layer below the hand-off and was consulted
+  inconsistently: a message held at session start, and a message triggered while another was on
+  screen, both reached the screen without ever meeting the claim test.
+- **Android** — `IInAppMessageManagerListener.beforeInAppMessageDisplayed`, consulted on every pop
+  from `inAppMessageStack`. A claimed message returns `DISCARD` so it leaves Braze's stack entirely.
+
+### Smaller customizations
+
+- Retained messages are cleared on `changeUser` / `wipeData`, so they cannot leak to the next user.
+- In-app animations stay suppressed, matching pre-16 behaviour.
+- The legacy `app.inAppMessageReceived` eval is null-safe: Capacitor's Cordova shim always returns a
+  null engine, and the upstream call crashed the app on the first claimed message.
 
 ---
 
