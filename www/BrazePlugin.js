@@ -76,9 +76,14 @@ BrazePlugin.prototype.showInAppMessage = function (id, successCallback, errorCal
  * Stops retaining an in-app message. Call this once the app has finished with a message it took
  * ownership of — whether it rendered it or dropped it — so the native side can let it go.
  *
+ * Idempotent, and deliberately unlike showInAppMessage(id): releasing an id that is not retained
+ * (already shown, released, or evicted) still succeeds. Releasing asks for the message to be gone,
+ * and an id that is already gone is that outcome, not a failure. Only showInAppMessage errors on an
+ * unknown id, because it cannot deliver what it promises — there is nothing to hand back.
+ *
  * @param {number} id - The `id` from the subscribeToInAppMessage callback payload.
- * @param {function} [successCallback]
- * @param {function} [errorCallback]
+ * @param {function} [successCallback] - Called once the message is no longer retained.
+ * @param {function} [errorCallback] - Reserved; not called for an unknown id, per the above.
  */
 BrazePlugin.prototype.releaseInAppMessage = function (id, successCallback, errorCallback) {
     cordova.exec(successCallback, errorCallback, "BrazePlugin", "releaseInAppMessage", [id]);

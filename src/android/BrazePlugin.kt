@@ -419,7 +419,10 @@ open class BrazePlugin : CordovaPlugin() {
             }
             "showInAppMessage" -> {
                 // Stake custom: hand a retained message back to Braze so Braze renders it itself.
-                val messageId = args.getInt(0)
+                // optInt, not getInt: a missing or non-numeric argument yields the sentinel, which
+                // matches no retained message. getInt throws, and 0 is a real id, so neither raising
+                // nor coercing is right here.
+                val messageId = args.optInt(0, INVALID_IN_APP_MESSAGE_ID)
                 val inAppMessage = takePendingInAppMessage(messageId)
                 if (inAppMessage == null) {
                     callbackContext.error("No retained in-app message for id $messageId")
@@ -433,7 +436,9 @@ open class BrazePlugin : CordovaPlugin() {
             }
             "releaseInAppMessage" -> {
                 // Stake custom: JS is done with the message (rendered it, or dropped it) — stop retaining it.
-                takePendingInAppMessage(args.getInt(0))
+                // Succeeds whether or not the id matched: releasing is "make sure this is gone", and an
+                // id already shown, released or evicted is that outcome, not a failure.
+                takePendingInAppMessage(args.optInt(0, INVALID_IN_APP_MESSAGE_ID))
                 callbackContext.success()
                 return true
             }
@@ -1156,6 +1161,9 @@ open class BrazePlugin : CordovaPlugin() {
         // Stake custom: retain-and-present
         /** Most in-app messages retained for JS at once; the oldest are evicted beyond this. */
         private const val MAX_PENDING_IN_APP_MESSAGES = 10
+
+        /** Stands in for a missing or non-numeric id from JS. Ids start at 0, so it can never match one. */
+        private const val INVALID_IN_APP_MESSAGE_ID = -1
 
         /**
          * Default claim marker. Version-agnostic on purpose ("V", not "V1"), so a new payload version

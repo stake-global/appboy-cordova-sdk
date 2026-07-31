@@ -1047,11 +1047,15 @@ static NSString *const kDefaultStakeInAppMessageBodyMarker = @"stakeInAppMessage
 }
 
 /// Removes and returns the retained in-app message for `messageId`, or nil when there is none.
-- (BRZInAppMessageRaw *)takePendingInAppMessage:(NSNumber *)messageId {
-  if (messageId == nil) {
+///
+/// `messageId` comes straight off `argumentAtIndex:`, so it is whatever JS passed. Anything that is not
+/// a number is rejected rather than coerced: `[@"foo" integerValue]` is 0, and 0 is a real id — the
+/// first one minted — so coercing would show or release someone else's message.
+- (BRZInAppMessageRaw *)takePendingInAppMessage:(id)messageId {
+  if (![messageId isKindOfClass:[NSNumber class]]) {
     return nil;
   }
-  NSNumber *key = @([messageId integerValue]);
+  NSNumber *key = @([(NSNumber *)messageId integerValue]);
   BRZInAppMessageRaw *message = pendingInAppMessages[key];
   [pendingInAppMessages removeObjectForKey:key];
   return message;
