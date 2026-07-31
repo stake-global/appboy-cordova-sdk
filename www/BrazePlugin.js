@@ -3,10 +3,33 @@ var BrazePlugin = function () {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Stake custom functions
-// Controls *when* Braze in-app messages are displayed. Braze's automatic display
-// is suppressed natively; messages are held and presented on demand via
-// getNextInApp(). See CustomInAppMessageManagerListener.kt (Android) and the
-// "Stake custom" section of BrazePlugin.m (iOS).
+// Two independent things are controlled here.
+//
+// *When* a message is displayed. Braze's automatic display is suppressed until the
+// app calls getNextInApp() once; from then on messages present as they arrive,
+// mid-session triggers included. That latch is sticky — one call means "ready",
+// not "show me one" — and it applies to every message regardless of who renders it.
+//
+// *Who renders it.* With subscribeToInAppMessage(cb, err, false), any message whose
+// body contains the claim marker anywhere is retained natively and handed to `cb` as
+// { id, message } for the app to draw itself. Every other message — surveys, NPS,
+// templates, plain HTML campaigns, control messages — is rendered by Braze and never
+// reaches `cb`. The marker defaults to the Stake payload marker natively; pass a 4th
+// argument only to override it. It is never cleared, because an unmarked plugin would
+// hand the payload to Braze, which renders the body as HTML.
+//
+// The native test is a plain substring match, so it can over-claim: a Braze-authored
+// message that merely mentions the marker in its copy reaches `cb`. That is the safe
+// direction — `cb` applies the precise test and returns anything it does not own via
+// showInAppMessage(id).
+//
+// Both platforms decide this at their SDK's single hand-off point, so no message can
+// reach a screen without being offered to the app first. On iOS the plugin registers
+// itself as the BrazeInAppMessagePresenter and keeps Braze's UI privately; on Android
+// it is the in-app message manager listener, which the SDK consults on every attempt
+// to display. Neither platform lets a claimable message sit in a Braze-owned queue.
+//
+// See the "Stake custom" sections of BrazePlugin.kt (Android) and BrazePlugin.m (iOS).
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -25,10 +48,45 @@ BrazePlugin.prototype.getNextInApp = function (successCallback, errorCallback) {
 }
 
 /**
- * Returns the number of in-app messages currently held on the stack.
+ * Returns the number of in-app messages currently held on Braze's stack plus the number retained
+ * for JS by subscribeToInAppMessage(cb, err, false).
  */
 BrazePlugin.prototype.inAppMessagesRemainingOnStack = function (successCallback, errorCallback) {
     cordova.exec(successCallback, errorCallback, "BrazePlugin", "inAppMessagesRemainingOnStack");
+}
+
+/**
+ * Hands a retained in-app message back to Braze so Braze renders it with its own UI — the mobile
+ * equivalent of the Web SDK's `braze.showInAppMessage(message)`. Use this for any message the app
+ * does not render itself (surveys, templates, plain HTML campaigns).
+ *
+ * The message stops being retained: it does not need a matching releaseInAppMessage(id) call, and
+ * it no longer counts towards inAppMessagesRemainingOnStack().
+ *
+ * @param {number} id - The `id` from the subscribeToInAppMessage callback payload.
+ * @param {function} [successCallback] - Called once the message has been handed to Braze.
+ * @param {function} [errorCallback] - Called with a message when `id` is not retained (already
+ *                                     shown, released, or evicted).
+ */
+BrazePlugin.prototype.showInAppMessage = function (id, successCallback, errorCallback) {
+    cordova.exec(successCallback, errorCallback, "BrazePlugin", "showInAppMessage", [id]);
+}
+
+/**
+ * Stops retaining an in-app message. Call this once the app has finished with a message it took
+ * ownership of — whether it rendered it or dropped it — so the native side can let it go.
+ *
+ * Idempotent, and deliberately unlike showInAppMessage(id): releasing an id that is not retained
+ * (already shown, released, or evicted) still succeeds. Releasing asks for the message to be gone,
+ * and an id that is already gone is that outcome, not a failure. Only showInAppMessage errors on an
+ * unknown id, because it cannot deliver what it promises — there is nothing to hand back.
+ *
+ * @param {number} id - The `id` from the subscribeToInAppMessage callback payload.
+ * @param {function} [successCallback] - Called once the message is no longer retained.
+ * @param {function} [errorCallback] - Reserved; not called for an unknown id, per the above.
+ */
+BrazePlugin.prototype.releaseInAppMessage = function (id, successCallback, errorCallback) {
+    cordova.exec(successCallback, errorCallback, "BrazePlugin", "releaseInAppMessage", [id]);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -488,11 +546,43 @@ BrazePlugin.prototype.logContentCardDismissed = function (cardId) {
 }
 
 /**
- * Subscribes to Braze in-app messages
+ * Subscribes to Braze in-app messages.
+ *
+ * `successCallback` is invoked for every triggered message with an object:
+ *
+ *     { id: number, message: string }
+ *
+ * `message` is the **unescaped** Braze message JSON — pass it straight to `JSON.parse`, and pass it
+ * back verbatim to logInAppMessageImpression / logInAppMessageClicked / logInAppMessageButtonClicked
+ * / performInAppMessageAction.
+ *
+ * Stake custom: with `useBrazeUI = false`, ONLY messages whose body contains the claim marker reach
+ * `successCallback`. Such a message is retained natively and discarded from Braze's stack — the app owns
+ * it, and `id` is the handle for showInAppMessage(id) (hand it back to Braze) or releaseInAppMessage(id)
+ * (done with it). Every other message is rendered by Braze and never reaches the callback, so
+ * subscribing cannot change how existing campaigns behave.
+ *
+ * The match is a plain substring test, so `successCallback` must be prepared to receive a message it
+ * does not own and hand it back with showInAppMessage(id).
+ *
+ * With `useBrazeUI = true`, or before any subscription, nothing is claimed and Braze renders
+ * everything — the payload body is then rendered as HTML, so only do that when no such campaign can
+ * reach the app.
+ *
+ * Subscribing does NOT change display timing — that is governed by the getNextInApp() latch and is
+ * the same for claimed and unclaimed messages alike.
+ *
+ * Call this ONCE per page lifetime. There is a single subscriber slot: re-subscribing replaces the
+ * previous callback (the old one is released natively, so it is never invoked again). Re-subscribing
+ * does not release messages already retained for the previous callback — those stay pending until
+ * showInAppMessage(id) / releaseInAppMessage(id) or changeUser.
+ *
  * @param {boolean} useBrazeUI - Whether to use Braze's UI for in-app messages
+ * @param {string} [claimMarker] - Overrides the body marker identifying messages the app renders
+ *                                 itself. Omit to keep the native default.
  */
-BrazePlugin.prototype.subscribeToInAppMessage = function (successCallback, errorCallback, useBrazeUI = true) {
-    cordova.exec(successCallback, errorCallback, "BrazePlugin", "subscribeToInAppMessage", [useBrazeUI]);
+BrazePlugin.prototype.subscribeToInAppMessage = function (successCallback, errorCallback, useBrazeUI = true, claimMarker = null) {
+    cordova.exec(successCallback, errorCallback, "BrazePlugin", "subscribeToInAppMessage", [useBrazeUI, claimMarker]);
 }
 
 /**
