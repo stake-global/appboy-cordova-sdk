@@ -1,0 +1,92 @@
+#import <Cordova/CDV.h>
+#import "BrazeIDFADelegate.h"
+@import BrazeKit;
+
+@interface BrazePlugin : CDVPlugin <UIAlertViewDelegate> {}
+
+@property Braze *braze;
+@property id<BrazeIDFADelegate> idfaDelegate;
+@property NSMutableArray<BRZCancellable *> *subscriptions;
+
+/// Static Braze instance provided as a convenience method for compatibility.
+///
+/// Accessing this property before initializing the Braze plugin will return a `nil` value.
++ (Braze *)braze;
+
+/*-------Stake custom-------*/
+// Controls when in-app messages are displayed: messages are held and presented on demand.
+- (void)promptForPush:(CDVInvokedUrlCommand *)command;
+- (void)getNextInApp:(CDVInvokedUrlCommand *)command;
+- (void)inAppMessagesRemainingOnStack:(CDVInvokedUrlCommand *)command;
+// Retain-and-present: hand a message JS was given back to Braze, or stop retaining it.
+- (void)showInAppMessage:(CDVInvokedUrlCommand *)command;
+- (void)releaseInAppMessage:(CDVInvokedUrlCommand *)command;
+
+/*-------Braze-------*/
+- (void)changeUser:(CDVInvokedUrlCommand *)command;
+- (void)setSdkAuthenticationSignature:(CDVInvokedUrlCommand *)command;
+- (void)subscribeToSdkAuthenticationFailures:(CDVInvokedUrlCommand *)command;
+- (void)subscribeToInAppMessage:(CDVInvokedUrlCommand *)command;
+- (void)hideCurrentInAppMessage:(CDVInvokedUrlCommand *)command;
+- (void)logCustomEvent:(CDVInvokedUrlCommand *)command;
+- (void)logPurchase:(CDVInvokedUrlCommand *)command;
+- (void)disableSdk:(CDVInvokedUrlCommand *)command;
+- (void)enableSdk:(CDVInvokedUrlCommand *)command;
+- (void)wipeData:(CDVInvokedUrlCommand *)command;
+- (void)requestImmediateDataFlush:(CDVInvokedUrlCommand *)command;
+- (void)getDeviceId:(CDVInvokedUrlCommand *)command;
+- (void)updateTrackingPropertyAllowList:(CDVInvokedUrlCommand *)command;
+- (void)setAdTrackingEnabled:(CDVInvokedUrlCommand *)command;
+
+/*-------Braze.User-------*/
+- (void)setFirstName:(CDVInvokedUrlCommand *)command;
+- (void)setLastName:(CDVInvokedUrlCommand *)command;
+- (void)setEmail:(CDVInvokedUrlCommand *)command;
+- (void)setGender:(CDVInvokedUrlCommand *)command;
+- (void)setDateOfBirth:(CDVInvokedUrlCommand *)command;
+- (void)setCountry:(CDVInvokedUrlCommand *)command;
+- (void)setHomeCity:(CDVInvokedUrlCommand *)command;
+- (void)setPhoneNumber:(CDVInvokedUrlCommand *)command;
+- (void)setLanguage:(CDVInvokedUrlCommand *)command;
+- (void)setLastKnownLocation:(CDVInvokedUrlCommand *)command;
+
+- (void)setPushNotificationSubscriptionType:(CDVInvokedUrlCommand *)command;
+- (void)setEmailNotificationSubscriptionType:(CDVInvokedUrlCommand *)command;
+
+- (void)setBoolCustomUserAttribute:(CDVInvokedUrlCommand *)command;
+- (void)setStringCustomUserAttribute:(CDVInvokedUrlCommand *)command;
+- (void)setDoubleCustomUserAttribute:(CDVInvokedUrlCommand *)command;
+- (void)setDateCustomUserAttribute:(CDVInvokedUrlCommand *)command;
+- (void)setIntCustomUserAttribute:(CDVInvokedUrlCommand *)command;
+- (void)setCustomUserAttributeArray:(CDVInvokedUrlCommand *)command;
+- (void)unsetCustomUserAttribute:(CDVInvokedUrlCommand *)command;
+- (void)incrementCustomUserAttribute:(CDVInvokedUrlCommand *)command;
+- (void)addToCustomAttributeArray:(CDVInvokedUrlCommand *)command;
+- (void)removeFromCustomAttributeArray:(CDVInvokedUrlCommand *)command;
+- (void)addAlias:(CDVInvokedUrlCommand *)command;
+
+/*-------BrazeUI-------*/
+- (void)launchContentCards:(CDVInvokedUrlCommand *)command;
+
+/*-------Content Cards-------*/
+- (void)requestContentCardsRefresh:(CDVInvokedUrlCommand *)command;
+- (void)getContentCardsFromServer:(CDVInvokedUrlCommand *)command;
+- (void)getContentCardsFromCache:(CDVInvokedUrlCommand *)command;
+- (void)logContentCardClicked:(CDVInvokedUrlCommand *)command;
+- (void)logContentCardImpression:(CDVInvokedUrlCommand *)command;
+- (void)logContentCardDismissed:(CDVInvokedUrlCommand *)command;
+
+/*-------Feature Flags-------*/
+- (void)getFeatureFlag:(CDVInvokedUrlCommand *)command;
+- (void)getAllFeatureFlags:(CDVInvokedUrlCommand *)command;
+- (void)refreshFeatureFlags:(CDVInvokedUrlCommand *)command;
+- (void)subscribeToFeatureFlagUpdates:(CDVInvokedUrlCommand *)command;
+- (void)getFeatureFlagBooleanProperty:(CDVInvokedUrlCommand *)command;
+- (void)getFeatureFlagStringProperty:(CDVInvokedUrlCommand *)command;
+- (void)getFeatureFlagNumberProperty:(CDVInvokedUrlCommand *)command;
+- (void)getFeatureFlagTimestampProperty:(CDVInvokedUrlCommand *)command;
+- (void)getFeatureFlagJSONProperty:(CDVInvokedUrlCommand *)command;
+- (void)getFeatureFlagImageProperty:(CDVInvokedUrlCommand *)command;
+- (void)logFeatureFlagImpression:(CDVInvokedUrlCommand *)command;
+
+@end
