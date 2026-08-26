@@ -540,13 +540,24 @@
 - (void) getContentCardsFromServer:(CDVInvokedUrlCommand *)command {
   NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
   NSOperationQueue *mainQueue = [NSOperationQueue mainQueue];
-  [center addObserverForName:ABKContentCardsProcessedNotification object:nil
+
+  __block id observer = nil;
+  observer = [center addObserverForName:ABKContentCardsProcessedNotification object:nil
                                                    queue:mainQueue usingBlock:^(NSNotification *note) {
+                                                     // One-shot. A Cordova command can only be answered once, and an
+                                                     // observer left registered leaks one per call.
+                                                     [center removeObserver:observer];
+
                                                      NSLog(@"Got Content Cards from server callback");
                                                      BOOL updateIsSuccessful = [note.userInfo[ABKContentCardsProcessedIsSuccessfulKey] boolValue];
                                                      if (updateIsSuccessful) {
                                                        [self getContentCardsFromCache:command];
+                                                       return;
                                                      }
+
+                                                     // An unsuccessful refresh used to be discarded here, so the JS
+                                                     // promise never settled and callers waiting on it hung forever.
+                                                     [self sendCordovaErrorPluginResultWithString:@"Content card refresh was unsuccessful" andCommand:command];
                                                    }];
   [[Appboy sharedInstance] requestContentCardsRefresh];
 }
