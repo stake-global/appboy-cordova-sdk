@@ -8,6 +8,10 @@ control *when* Braze in-app messages are displayed:
   Android the app calls the standard `requestPushPermission()`.
 - **`getNextInApp(success, error)`** — presents the next in-app message held on the stack.
 - **`inAppMessagesRemainingOnStack(success, error)`** — best-effort count of held in-app messages.
+- **Android build extras** — upstream's `postBuildExtras` hook (and the `buildscript` block that fed
+  it) is removed. Capacitor's app template already applies google-services, and the hook failed when
+  run from a plugin script. It was masked until FE-7492 removed `cordova-plugin-ionic`, whose own
+  hook had been overwriting it.
 
 Braze's automatic in-app display is suppressed by default (held / re-enqueued); messages are
 presented on demand via `getNextInApp()`. Implemented with a single in-app message listener

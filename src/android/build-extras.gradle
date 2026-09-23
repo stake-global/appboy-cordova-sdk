@@ -8,5 +8,5 @@ dependencies {
     implementation 'com.google.firebase:firebase-messaging:23.0.0'
 }
 
-// No postBuildExtras: Capacitor's app template applies google-services itself, and this hook cannot
-// load it from a plugin script. It also overwrites any other plugin's hook. See FE-7492.
+// Stake custom: upstream's buildscript block and postBuildExtras hook are removed. Capacitor's app
+// template already applies google-services, and the hook cannot load it from a plugin script (FE-7492).
