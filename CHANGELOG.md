@@ -65,6 +65,9 @@ place and nothing below it.
 - In-app animations stay suppressed, matching pre-16 behaviour.
 - The legacy `app.inAppMessageReceived` eval is null-safe: Capacitor's Cordova shim always returns a
   null engine, and the upstream call crashed the app on the first claimed message.
+- Android `build-extras.gradle` drops upstream's `buildscript` block and `postBuildExtras` hook.
+  Capacitor's app template already applies google-services, and the hook fails when run from a plugin
+  script. It was masked until FE-7492 removed `cordova-plugin-ionic`, whose own hook overwrote it.
 
 ---
 

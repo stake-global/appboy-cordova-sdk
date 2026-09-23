@@ -25,8 +25,9 @@
 > changing anything under `src/`.
 >
 > **Consumed by `stake-frontend`** via a branch ref in `apps/mobile-app/package.json`, not by the
-> `cordova plugin add` commands below. After changing anything here, bump that ref, run
-> `npx cap sync ios && npx cap sync android`, and confirm the synced copies under
+> `cordova plugin add` commands below. The lockfile pins a commit, so after changing anything here run
+> `pnpm --filter ./apps/mobile-app update braze-cordova-sdk`, then `pnpm exec cap sync ios` and
+> `pnpm exec cap sync android` from `apps/mobile-app`, and confirm the synced copies under
 > `ios/capacitor-cordova-ios-plugins/` and `android/capacitor-cordova-android-plugins/` are
 > byte-identical to `node_modules/braze-cordova-sdk` — a stale synced copy has cost a debugging
 > session before.
