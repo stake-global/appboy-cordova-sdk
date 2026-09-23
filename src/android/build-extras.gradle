@@ -8,26 +8,5 @@ dependencies {
     implementation 'com.google.firebase:firebase-messaging:23.0.0'
 }
 
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-    }
-
-    dependencies {
-        classpath 'com.google.gms:google-services:4.4.4'
-    }
-}
-
-// apply the google services plugin by its class name since we're not
-// in the root gradle file
-ext.postBuildExtras = {
-    apply plugin: com.google.gms.googleservices.GoogleServicesPlugin
-
-    android {
-        kotlinOptions {
-            freeCompilerArgs = ['-Xjvm-default=all']
-            jvmTarget = "1.8"
-        }
-    }
-}
+// No postBuildExtras: Capacitor's app template applies google-services itself, and this hook cannot
+// load it from a plugin script. It also overwrites any other plugin's hook. See FE-7492.
