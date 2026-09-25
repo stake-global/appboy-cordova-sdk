@@ -959,7 +959,14 @@ open class BrazePlugin : CordovaPlugin() {
         }
 
         Braze.getInstance(applicationContext).subscribeToContentCardsUpdates(subscriber)
-        Braze.getInstance(applicationContext).requestContentCardsRefreshFromCache()
+
+        // Honour the action. Both getters previously refreshed from cache, so getContentCardsFromServer
+        // never reached the server and its cards only ever changed on the SDK's own background sync.
+        if (action == GET_CONTENT_CARDS_FROM_SERVER_METHOD) {
+            Braze.getInstance(applicationContext).requestContentCardsRefresh()
+        } else {
+            Braze.getInstance(applicationContext).requestContentCardsRefreshFromCache()
+        }
         return true
     }
 
